@@ -292,7 +292,7 @@ class EKF():
         # Update step
         self.Y_residual = self.Z - self.h
         self.S = self.H @ self.P @ self.H.T + self.R
-        self.K = self.P @ self.H.T @ ca.inv(self.S)
+        self.K = self.P @ self.H.T @ ca.pinv(self.S)
         self.X_update = self.X + self.K @ self.Y_residual
         self.P_update = (
             ca.SX.eye(self.X.size()[0]) - self.K @ self.H) @ self.P
@@ -309,8 +309,8 @@ class EKF():
         # Define the CasADi function for update
         self.update_function = ca.Function(
             'update_function',
-            [self.X, self.Z, self.P, self.aux_R_vector],
-            [self.X_update, self.P_update],
-            ['X', 'Z', 'P', 'R'],
-            ['X_update', 'P_update']
+            [self.X, self.W, self.Z, self.P, self.aux_R_vector],
+            [self.X_update, self.P_update, self.K],
+            ['X', 'W', 'Z', 'P', 'R'],
+            ['X_update', 'P_update', 'Y_residual']
         )

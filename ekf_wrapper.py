@@ -71,11 +71,13 @@ class EKFWrapper:
         :param z (np.ndarray): The measurement vector.
         :param measurement_noise_covariance (np.ndarray): The measurement noise covariance matrix.
         """
-        X_new, P_new = self.ekf.update_function(
+        X_new, P_new, res = self.ekf.update_function(
             self.state,
+            self.imu_noise,
             z,
             self.state_covariance,
             measurement_noise_covariance,
         )
         self.state = X_new
         self.state_covariance = P_new
+        return res

@@ -57,13 +57,14 @@ def main():
         0.0, 0.0, 0.0,  # Position (x, y, z)
         1.0, 0.0, 0.0, 0.0  # Orientation (quaternion w, x, y, z)
     ])
-    pose_covariance = np.eye(7) * 0.0
+    pose_covariance = np.ones(7) * 0.000001
 
-    ekf_wrapper.update(pose_measurement, pose_covariance)
+    res = ekf_wrapper.update(pose_measurement, pose_covariance)
 
     print("State after update:", ekf_wrapper.get_state())
     print("State covariance after update:",
           ekf_wrapper.get_state_covariance())
+    print(res)
 
 
 if __name__ == "__main__":
