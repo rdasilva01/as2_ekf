@@ -35,7 +35,7 @@ __copyright__ = 'Copyright (c) 2022 Universidad Politécnica de Madrid'
 __license__ = 'BSD-3-Clause'
 
 import casadi as ca
-import numpy as np
+
 
 class Utils():
     """
@@ -70,7 +70,7 @@ class Utils():
         qz = qw1 * qz2 + qx1 * qy2 - qy1 * qx2 + qz1 * qw2
 
         return ca.vertcat(qw, qx, qy, qz)
-    
+
     @staticmethod
     def apply_rotation(q: ca.SX, v: ca.SX) -> ca.SX:
         """
@@ -160,6 +160,7 @@ class Utils():
             v_dot[2] - gravity
         )
 
+
 class EKF():
     """
     Extended Kalman Filter (EKF) class.
@@ -177,11 +178,11 @@ class EKF():
         # State vector
         # x, y, z, vx, vy, vz, qw, qx, qy, qz, abx, aby, abz, wbx, wby, wbz
         self.X = ca.SX.sym('X', 16)
-        self.x, self.y, self.z, \
-            self.vx, self.vy, self.vz, \
-            self.qw, self.qx, self.qy, self.qz, \
-            self.abx, self.aby, self.abz, \
-            self.wbx, self.wby, self.wbz = ca.vertsplit(self.X)
+        # self.x, self.y, self.z, \
+        #     self.vx, self.vy, self.vz, \
+        #     self.qw, self.qx, self.qy, self.qz, \
+        #     self.abx, self.aby, self.abz, \
+        #     self.wbx, self.wby, self.wbz = ca.vertsplit(self.X)
         state_position = self.X[0:3]
         state_velocity = self.X[3:6]
         state_orientation = self.X[6:10]
@@ -191,28 +192,26 @@ class EKF():
         # Inputs
         # axm, aym, azm, wxm, wym, wzm
         self.U = ca.SX.sym('U', 6)
-        self.axm, self.aym, self.azm, \
-            self.wxm, self.wym, self.wzm = ca.vertsplit(self.U)
+        # self.axm, self.aym, self.azm, \
+        #     self.wxm, self.wym, self.wzm = ca.vertsplit(self.U)
         input_acceleration = self.U[0:3]
         input_angular_velocity = self.U[3:6]
 
         # Inputs noise
         # axw, ayw, azw, wxw, wyw, wzw
         self.W = ca.SX.sym('W', 6)
-        self.axw, self.ayw, self.azw, \
-            self.wxw, self.wyw, self.wzw = ca.vertsplit(self.W)
+        # self.axw, self.ayw, self.azw, \
+        #     self.wxw, self.wyw, self.wzw = ca.vertsplit(self.W)
         input_noise_acceleration = self.W[0:3]
         input_noise_angular_velocity = self.W[3:6]
 
         # Inputs without noise
         # iax, iay, iaz, iwx, iwy, iwz
         self.IN = self.U - self.W
-        self.iax, self.iay, self.iaz, \
-            self.iwx, self.iwy, self.iwz = ca.vertsplit(self.IN)
+        # self.iax, self.iay, self.iaz, \
+        #     self.iwx, self.iwy, self.iwz = ca.vertsplit(self.IN)
         input_wo_noise_acceleration = self.IN[0:3]
         input_wo_noise_angular_velocity = self.IN[3:6]
-        
-        
 
         # Derivatives
         p_dot = state_velocity
@@ -226,7 +225,7 @@ class EKF():
             state_orientation,
             input_wo_noise_angular_velocity
         )
-        
+
         self.f_continuous = ca.vertcat(
             p_dot,
             v_dot,
@@ -250,7 +249,6 @@ class EKF():
         self.L = ca.jacobian(self.f, self.W)
         self.H = ca.jacobian(self.h, self.X)
 
-
         # Substitute W with 0
         self.f = ca.substitute(self.f, self.W, 0)
         self.F = ca.substitute(self.F, self.W, 0)
@@ -258,81 +256,61 @@ class EKF():
         self.H = ca.substitute(self.H, self.W, 0)
 
         # covariance and extra matrices
-        symmetric_indexing = lambda i,j: int(i*(i+1)/2+j) if i>=j else int(j*(j+1)/2+i)
-        aux_P_vector = ca.SX.sym('P', symmetric_indexing(self.X.size()[0], self.X.size()[0]))
-        self.P = ca.SX.zeros(self.X.size()[0], self.X.size()[0])
-        for i in range(self.X.size()[0]):
-            for j in range(i, self.X.size()[0]):
-                self.P[i,j] = aux_P_vector[symmetric_indexing(i,j)]
-                self.P[j,i] = self.P[i,j]
-
-        aux_Q_vector = ca.SX.sym('Q', self.W.size()[0])
+        # State covariance matrix
+        self.P = ca.SX.sym('P', self.X.size()[0], self.X.size()[0])
+        # def symmetric_indexing(i, j): return int(
+        #     i*(i+1)/2+j) if i >= j else int(j*(j+1)/2+i)
+        # self.aux_P_vector = ca.SX.sym('P', symmetric_indexing(
+        #     self.X.size()[0], self.X.size()[0]))
+        # self.P = ca.SX.zeros(self.X.size()[0], self.X.size()[0])
+        # for i in range(self.X.size()[0]):
+        #     for j in range(i, self.X.size()[0]):
+        #         self.P[i, j] = self.aux_P_vector[symmetric_indexing(i, j)]
+        #         self.P[j, i] = self.P[i, j]
+        # Process Noise covariance matrix
+        self.aux_Q_vector = ca.SX.sym('Q', self.W.size()[0])
         self.Q = ca.SX.zeros(self.W.size()[0], self.W.size()[0])
         for i in range(self.W.size()[0]):
             for j in range(i, self.W.size()[0]):
                 if i == j:
-                    self.Q[i,j] = aux_Q_vector[i]
-        
-        aux_R_vector = ca.SX.sym('R', self.h.size()[0])
+                    self.Q[i, j] = self.aux_Q_vector[i]
+
+        # Measurement Noise covariance matrix
+        self.aux_R_vector = ca.SX.sym('R', self.h.size()[0])
         self.R = ca.SX.zeros(self.h.size()[0], self.h.size()[0])
         for i in range(self.h.size()[0]):
             for j in range(i, self.h.size()[0]):
                 if i == j:
-                    self.R[i,j] = aux_R_vector[i]
+                    self.R[i, j] = self.aux_R_vector[i]
 
         self.Z = ca.SX.sym('Z', self.h.size()[0])
-
-    def init_state(self, state: ca.SX):
-        """
-        Initialize the state vector.
-        """
-        self.X = state
-
-
-    def predict_step(self,
-                     u: ca.SX,
-                     dt: ca.SX
-                     ) -> (ca.SX, ca.SX)):
-        """
-        Predict step of the EKF.
-        :param u (ca.SX): The input vector [axm, aym, azm, wxm, wym, wzm].
-        :param dt (ca.SX): The time step.
-        """
-        # Update the time step
-        self.dt = dt
-
-        # Update the input vector
-        self.U = u
 
         # Predict step
         self.X_pred = self.f
         self.P_pred = self.F @ self.P @ self.F.T + self.L @ self.Q @ self.L.T
 
-        return self.X_pred, self.P_pred
-        
-    def update_step(self, z: ca.SX) -> (ca.SX, ca.SX):
-        """
-        Update step of the EKF.
-        :param z (ca.SX): The measurement vector [x, y, z, qw, qx, qy, qz].
-        """
-        # Update the measurement vector
-        self.Z = z
-
         # Update step
         self.Y_residual = self.Z - self.h
-        self.S = self.H @ self.P_pred @ self.H.T + self.R
+        self.S = self.H @ self.P @ self.H.T + self.R
         self.K = self.P @ self.H.T @ ca.inv(self.S)
         self.X_update = self.X + self.K @ self.Y_residual
-        self.P_update = (ca.SX.eye(self.X.size()[0]) - self.K @ self.H) @ self.P
+        self.P_update = (
+            ca.SX.eye(self.X.size()[0]) - self.K @ self.H) @ self.P
 
-        return self.X_update, self.P_update
-
-
-if __name__ == '__main__':
-    # Example usage
-    ekf = EKF()
-    # print("EKF initialized with state vector:", ekf.X)
-    # print("State vector size:", ekf.X.size())
-    # print("Input vector:", ekf.U)
-    # print("Input noise vector:", ekf.W)
-    # print("Time step symbol:", ekf.dt)
+        # Functions
+        # Define the CasADi function for prediction
+        self.predict_function = ca.Function(
+            'predict_function',
+            [self.X, self.U, self.W, self.dt, self.P, self.aux_Q_vector],
+            [self.X_pred, self.P_pred],
+            ['X', 'U', 'W', 'dt', 'P', 'Q'],
+            ['X_pred', 'P_pred']
+        )
+        # Define the CasADi function for update
+        self.update_function = ca.Function(
+            'update_function',
+            [self.X, self.Z, self.P, self.aux_R_vector],
+            [self.X_update, self.P_update],
+            ['X', 'Z', 'P', 'R'],
+            ['X_update', 'P_update']
+        )
