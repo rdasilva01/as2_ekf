@@ -5,6 +5,11 @@ from ekf_wrapper import EKFWrapper
 def main():
     print("Test for the EKF wrapper.")
 
+    accelerometer_noise_density = 0.0025624546199207194
+    accelerometer_random_walk = 8.055323021637122e-05
+    gyroscope_noise_density = 0.00011090831806067944
+    gyroscope_random_walk = 2.5135360798417067e-06
+
     # Example parameters
     initial_state = np.array([
         0.0, 0.0, 0.0,  # Position (x, y, z)
@@ -15,12 +20,16 @@ def main():
     ])
     initial_covariance = np.zeros((16, 16))
     imu_noise = np.array([
-        0.0, 0.0, 0.0,    # Accelerometer noise
-        0.0, 0.0, 0.0  # Gyroscope noise
+        # Accelerometer noise
+        accelerometer_noise_density, accelerometer_noise_density, accelerometer_noise_density,
+        # Gyroscope noise
+        gyroscope_noise_density, gyroscope_noise_density, gyroscope_noise_density
     ])
     process_noise_covariance_diagonal = np.array([
-        0.0, 0.0, 0.0,     # Accelerometer noise covariance
-        0.0, 0.0, 0.0,  # Gyroscope noise covariance
+        # Accelerometer noise covariance
+        accelerometer_random_walk, accelerometer_random_walk, accelerometer_random_walk,
+        # Gyroscope noise covariance
+        gyroscope_random_walk, gyroscope_random_walk, gyroscope_random_walk
     ])
 
     print("Initial state:", initial_state)
@@ -38,10 +47,15 @@ def main():
 
     # Example IMU Measurement
     imu_measurement = np.array([
-        0.0, 0.0, 10.81,  # Accelerometer (ax, ay, az)
-        0.0, 0.0, 0.0  # Gyroscope (gx, gy, gz)
+        0.0, 0.0, 9.81,  # Accelerometer (ax, ay, az)
+        0.0, 0.0, 1.0  # Gyroscope (gx, gy, gz)
     ])
-    dt = 0.01
+    dt = 0.1
+    ekf_wrapper.predict(imu_measurement, dt)
+    ekf_wrapper.predict(imu_measurement, dt)
+    ekf_wrapper.predict(imu_measurement, dt)
+    ekf_wrapper.predict(imu_measurement, dt)
+    ekf_wrapper.predict(imu_measurement, dt)
     ekf_wrapper.predict(imu_measurement, dt)
     ekf_wrapper.predict(imu_measurement, dt)
     ekf_wrapper.predict(imu_measurement, dt)
@@ -57,7 +71,7 @@ def main():
         0.0, 0.0, 0.0,  # Position (x, y, z)
         1.0, 0.0, 0.0, 0.0  # Orientation (quaternion w, x, y, z)
     ])
-    pose_covariance = np.ones(7) * 0.000001
+    pose_covariance = np.ones(7) * 1e-10
 
     res = ekf_wrapper.update(pose_measurement, pose_covariance)
 
