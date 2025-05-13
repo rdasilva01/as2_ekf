@@ -7,6 +7,7 @@ from nav_msgs.msg import Odometry
 
 from ekf_wrapper import EKFWrapper
 import numpy as np
+import tf_transformations as tf
 
 
 class EKFNode(Node):
@@ -26,34 +27,22 @@ class EKFNode(Node):
         initial_state = np.array([
             0.0, 0.0, 0.0,  # Position (x, y, z)
             0.0, 0.0, 0.0,  # Velocity (vx, vy, vz)
-            1.0, 0.0, 0.0, 0.0,  # Orientation (quaternion w, x, y, z)
+            0.0, 0.0, 0.0,  # Orientation (roll, pitch, yaw)
             0.0, 0.0, 0.0,
             0.0, 0.0, 0.0
         ])
-        initial_covariance = np.ones((16, 16)) * 0.00001
-        imu_noise = np.array([
-            # Accelerometer noise
-            accelerometer_noise_density, accelerometer_noise_density, accelerometer_noise_density,
-            # Gyroscope noise
-            gyroscope_noise_density, gyroscope_noise_density, gyroscope_noise_density
-        ])
-        process_noise_covariance_diagonal = np.array([
-            # Accelerometer noise covariance
-            accelerometer_random_walk, accelerometer_random_walk, accelerometer_random_walk,
-            # Gyroscope noise covariance
-            gyroscope_random_walk, gyroscope_random_walk, gyroscope_random_walk
-        ])
+        initial_covariance = np.ones((15, 15)) * 1e-5
 
         print("Initial state:", initial_state)
         print("Initial covariance diagonal:", initial_covariance)
-        print("IMU noise:", imu_noise)
-        print("Process noise covariance:", process_noise_covariance_diagonal)
 
         self.ekf_wrapper = EKFWrapper(
             initial_state,
             initial_covariance,
-            imu_noise,
-            process_noise_covariance_diagonal)
+            accelerometer_noise_density,
+            gyroscope_noise_density,
+            accelerometer_random_walk,
+            gyroscope_random_walk)
 
         print("EKF wrapper initialized.")
 
@@ -79,7 +68,7 @@ class EKFNode(Node):
         )
 
         self.last_time = 0.0
-        self.current_time = 0.001
+        self.current_time = 0.0001
         self.imu_counter = 0
 
     def imu_callback(self, msg):
@@ -115,15 +104,14 @@ class EKFNode(Node):
         odom_msg.pose.pose.position.x = float(state[0])
         odom_msg.pose.pose.position.y = float(state[1])
         odom_msg.pose.pose.position.z = float(state[2])
-        quaternion = np.array([
-            state[6], state[7], state[8], state[9]])
-        quaternion = quaternion / np.linalg.norm(quaternion)
+        quaternion = tf.quaternion_from_euler(
+            state[6], state[7], state[8])
         odom_msg.pose.pose.orientation.w = float(quaternion[0])
         odom_msg.pose.pose.orientation.x = float(quaternion[1])
         odom_msg.pose.pose.orientation.y = float(quaternion[2])
         odom_msg.pose.pose.orientation.z = float(quaternion[3])
         diag_covariance = np.double(np.diag(
-            np.append(np.diag(covariance)[0:3], np.diag(covariance)[7:10]))).flatten().tolist()
+            np.append(np.diag(covariance)[0:3], np.diag(covariance)[6:9]))).flatten().tolist()
         print("Covariance diagonal:", diag_covariance)
         odom_msg.pose.covariance = diag_covariance
         odom_msg.twist.twist.linear.x = float(state[3])

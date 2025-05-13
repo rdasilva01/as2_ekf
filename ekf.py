@@ -146,13 +146,14 @@ class Utils():
         v_dot = q(input - noise) - g
         :return (ca.SX): The velocity derivative [vx_dot, vy_dot, vz_dot].
         """
-        qw, qx, qy, qz = ca.vertsplit(state_orientation)
+        roll, pitch, yaw = ca.vertsplit(state_orientation)
         iax, iay, iaz = ca.vertsplit(input_acceleration)
 
-        v_dot = Utils.apply_rotation(
-            state_orientation,
-            input_acceleration
-        )
+        # v_dot = Utils.apply_rotation(
+        #     state_orientation,
+        #     input_acceleration
+        # )
+        v_dot = input_acceleration
 
         return ca.vertcat(
             v_dot[0],
@@ -194,8 +195,8 @@ class EKF():
         self.g = ca.DM(9.81)  # Gravity constant
 
         # State vector
-        # x, y, z, vx, vy, vz, qw, qx, qy, qz, abx, aby, abz, wbx, wby, wbz
-        self.X = ca.SX.sym('X', 16)
+        # x, y, z, vx, vy, vz, roll, pitch, yaw, abx, aby, abz, wbx, wby, wbz
+        self.X = ca.SX.sym('X', 15)
         # self.x, self.y, self.z, \
         #     self.vx, self.vy, self.vz, \
         #     self.qw, self.qx, self.qy, self.qz, \
@@ -203,9 +204,9 @@ class EKF():
         #     self.wbx, self.wby, self.wbz = ca.vertsplit(self.X)
         state_position = self.X[0:3]
         state_velocity = self.X[3:6]
-        state_orientation = self.X[6:10]
-        state_accelerometer_bias = self.X[10:13]
-        state_gyrometer_bias = self.X[13:16]
+        state_orientation = self.X[6:9]
+        state_accelerometer_bias = self.X[9:12]
+        state_gyrometer_bias = self.X[12:15]
 
         # Inputs
         # axm, aym, azm, wxm, wym, wzm
@@ -239,10 +240,11 @@ class EKF():
             input_wo_noise_acceleration,
             self.g)
 
-        q_dot = Utils.quaternion_derivate(
-            state_orientation,
-            input_wo_noise_angular_velocity
-        )
+        # q_dot = Utils.quaternion_derivate(
+        #     state_orientation,
+        #     input_wo_noise_angular_velocity
+        # )
+        q_dot = [0, 0, 0]
 
         self.f_continuous = ca.vertcat(
             p_dot,
@@ -256,10 +258,11 @@ class EKF():
         self.f = self.X + self.f_continuous * self.dt
 
         # Output function
-        # x, y, z, qw, qx, qy, qz
+        # x, y, z, roll, pitch, yaw
         self.h = ca.vertcat(
             state_position,
-            Utils.normalize_quaternion(state_orientation)
+            # Utils.normalize_quaternion(state_orientation)
+            state_orientation,
         )
 
         # Jacobians
@@ -303,8 +306,9 @@ class EKF():
         self.Y_residual = self.Z - self.h
         self.S = self.H @ self.P @ self.H.T + self.R
         self.K = self.P @ self.H.T @ ca.pinv(self.S)
-        self.X_update = Utils.state_quaternion_normalization(
-            self.X + self.K @ self.Y_residual)
+        # self.X_update = Utils.state_quaternion_normalization(
+        #     self.X + self.K @ self.Y_residual)
+        self.X_update = self.X + self.K @ self.Y_residual
         self.P_update = (
             ca.SX.eye(self.X.size()[0]) - self.K @ self.H) @ self.P
 
@@ -321,7 +325,7 @@ class EKF():
         self.update_function = ca.Function(
             'update_function',
             [self.X, self.W, self.Z, self.P, self.aux_R_vector],
-            [self.X_update, self.P_update, self.K],
+            [self.X_update, self.P_update],
             ['X', 'W', 'Z', 'P', 'R'],
-            ['X_update', 'P_update', 'Y_residual']
+            ['X_update', 'P_update']
         )
