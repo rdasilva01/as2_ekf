@@ -39,7 +39,7 @@ def main():
 
     # Example IMU Measurement
     imu_measurement = np.array([
-        0.0, 0.0, 10.81,  # Accelerometer (ax, ay, az)
+        0.0, 0.0, 9.81,  # Accelerometer (ax, ay, az)
         0.0, 0.0, 0.0  # Gyroscope (gx, gy, gz)
     ])
     dt = 0.001
