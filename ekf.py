@@ -160,6 +160,24 @@ class Utils():
             v_dot[2] - gravity
         )
 
+    @staticmethod
+    def state_quaternion_normalization(state: ca.SX) -> ca.SX:
+        """
+        Normalize the quaternion part of the state vector.
+
+        :param state (ca.SX): The state vector [x, y, z, vx, vy, vz, qw, qx, qy, qz].
+
+        :return (ca.SX): The normalized state vector.
+        """
+        q = state[6:10]
+        q_norm = Utils.normalize_quaternion(q)
+
+        return ca.vertcat(
+            state[0:6],
+            q_norm,
+            state[10:16]
+        )
+
 
 class EKF():
     """
@@ -258,15 +276,7 @@ class EKF():
         # covariance and extra matrices
         # State covariance matrix
         self.P = ca.SX.sym('P', self.X.size()[0], self.X.size()[0])
-        # def symmetric_indexing(i, j): return int(
-        #     i*(i+1)/2+j) if i >= j else int(j*(j+1)/2+i)
-        # self.aux_P_vector = ca.SX.sym('P', symmetric_indexing(
-        #     self.X.size()[0], self.X.size()[0]))
-        # self.P = ca.SX.zeros(self.X.size()[0], self.X.size()[0])
-        # for i in range(self.X.size()[0]):
-        #     for j in range(i, self.X.size()[0]):
-        #         self.P[i, j] = self.aux_P_vector[symmetric_indexing(i, j)]
-        #         self.P[j, i] = self.P[i, j]
+
         # Process Noise covariance matrix
         self.aux_Q_vector = ca.SX.sym('Q', self.W.size()[0])
         self.Q = ca.SX.zeros(self.W.size()[0], self.W.size()[0])
@@ -293,7 +303,8 @@ class EKF():
         self.Y_residual = self.Z - self.h
         self.S = self.H @ self.P @ self.H.T + self.R
         self.K = self.P @ self.H.T @ ca.pinv(self.S)
-        self.X_update = self.X + self.K @ self.Y_residual
+        self.X_update = Utils.state_quaternion_normalization(
+            self.X + self.K @ self.Y_residual)
         self.P_update = (
             ca.SX.eye(self.X.size()[0]) - self.K @ self.H) @ self.P
 
