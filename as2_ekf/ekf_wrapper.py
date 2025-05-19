@@ -31,12 +31,12 @@
 """EKF definition."""
 
 __authors__ = 'Rodrigo da Silva Gómez'
-__copyright__ = 'Copyright (c) 2022 Universidad Politécnica de Madrid'
+__copyright__ = 'Copyright (c) 2025 Universidad Politécnica de Madrid'
 __license__ = 'BSD-3-Clause'
 
 
 import numpy as np
-from ekf import EKF
+from as2_ekf.ekf import EKF
 
 
 class EKFWrapper:
@@ -107,7 +107,8 @@ class EKFWrapper:
 
         :return: The current state vector.
         """
-        return self.state
+        # return self.state
+        return np.array(self.state, dtype=np.float64)
 
     def get_state_covariance(self) -> np.ndarray:
         """
@@ -115,7 +116,7 @@ class EKFWrapper:
 
         :return: The current state covariance matrix.
         """
-        return self.state_covariance
+        return np.array(self.state_covariance, dtype=np.float64)
 
     def predict(self,
                 imu_measurement: np.ndarray,

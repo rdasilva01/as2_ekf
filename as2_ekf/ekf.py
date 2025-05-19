@@ -31,12 +31,12 @@
 """EKF definition."""
 
 __authors__ = 'Rodrigo da Silva Gómez'
-__copyright__ = 'Copyright (c) 2022 Universidad Politécnica de Madrid'
+__copyright__ = 'Copyright (c) 2025 Universidad Politécnica de Madrid'
 __license__ = 'BSD-3-Clause'
 
 
 import casadi as ca
-from casadi_utils import Utils
+from .casadi_utils import Utils
 
 
 class EKF():
@@ -44,11 +44,34 @@ class EKF():
     Extended Kalman Filter (EKF) class.
     """
 
+    def f_continuous(self, X, input_acc):
+        """
+        Continuous time state transition function.
+        :param X: State vector.
+        :param input_acc: Input acceleration vector (measured - bias).
+        :return: State derivative.
+        """
+        # Derivatives
+        p_dot = X[3:6]  # v
+        v_dot = Utils.velocity_derivative(
+            X[6:9],
+            input_acc,
+            self.g
+        )  # R(q)*(a_meas − b_a) + g
+        q_dot = [0, 0, 0]  # placeholder
+        biases_dot = ca.SX.zeros(6, 1)  # biases are constant
+        # New state
+        return ca.vertcat(
+            p_dot,
+            v_dot,
+            q_dot,
+            biases_dot
+        )
+
     def __init__(self):
         """
         Initialize the EKF.
         """
-
         # Time step
         self.dt = ca.SX.sym('dt')
         self.g = ca.DM(9.81)  # Gravity constant
@@ -91,30 +114,17 @@ class EKF():
         input_wo_noise_acceleration = self.IN[0:3]
         input_wo_noise_angular_velocity = self.IN[3:6]
 
-        # Derivatives
-        p_dot = state_velocity
+        # Runge-Kutta 4th order integration for state transition function
+        k1 = self.f_continuous(self.X,
+                               input_wo_noise_acceleration)
+        k2 = self.f_continuous(self.X + 0.5 * self.dt * k1,
+                               input_wo_noise_acceleration)
+        k3 = self.f_continuous(self.X + 0.5 * self.dt * k2,
+                               input_wo_noise_acceleration)
+        k4 = self.f_continuous(self.X + self.dt * k3,
+                               input_wo_noise_acceleration)
 
-        v_dot = Utils.velocity_derivative(
-            state_orientation,
-            input_wo_noise_acceleration,
-            self.g)
-
-        # q_dot = Utils.quaternion_derivate(
-        #     state_orientation,
-        #     input_wo_noise_angular_velocity
-        # )
-        q_dot = [0, 0, 0]
-
-        self.f_continuous = ca.vertcat(
-            p_dot,
-            v_dot,
-            q_dot,
-            0, 0, 0,
-            0, 0, 0
-        )
-
-        # Discrete state transition function
-        self.f = self.X + self.f_continuous * self.dt
+        self.f = self.X + (self.dt / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
         # Output function
         # x, y, z, roll, pitch, yaw

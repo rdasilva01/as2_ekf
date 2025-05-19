@@ -31,7 +31,7 @@
 """EKF definition."""
 
 __authors__ = 'Rodrigo da Silva Gómez'
-__copyright__ = 'Copyright (c) 2022 Universidad Politécnica de Madrid'
+__copyright__ = 'Copyright (c) 2025 Universidad Politécnica de Madrid'
 __license__ = 'BSD-3-Clause'
 
 
