@@ -58,7 +58,7 @@ class EKF():
             input_acc,
             self.g
         )  # R(q)*(a_meas − b_a) + g
-        q_dot = [0, 0, 0]  # placeholder
+        q_dot = ca.SX.zeros(3, 1)  # rotation derivative placeholder
         biases_dot = ca.SX.zeros(6, 1)  # biases are constant
         # New state
         return ca.vertcat(
@@ -126,6 +126,8 @@ class EKF():
 
         self.f = self.X + (self.dt / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
+        # print(self.f)
+
         # Output function
         # x, y, z, roll, pitch, yaw
         self.h = ca.vertcat(
@@ -144,6 +146,9 @@ class EKF():
         self.F = ca.substitute(self.F, self.W, 0)
         self.L = ca.substitute(self.L, self.W, 0)
         self.H = ca.substitute(self.H, self.W, 0)
+
+        # print("F:", self.F)
+        # print("L:", self.L)
 
         # covariance and extra matrices
         # State covariance matrix

@@ -54,7 +54,7 @@ class TestEKF(unittest.TestCase):
         ])
         self.initial_state = np.atleast_2d(self.initial_state).T
         # print(self.initial_state)
-        self.initial_covariance = np.ones((15, 15)) * 1e-5
+        self.initial_covariance = np.eye(15) * 1e-2
 
         # self.accelerometer_noise_density = 1e-2
         # self.accelerometer_random_walk = 1e-4
@@ -109,6 +109,7 @@ class TestEKF(unittest.TestCase):
         """
         Test EKF with no movement.
         """
+        print("Test 1 - No movement")
         # Reset EKF
         self.ekf_wrapper.reset(self.initial_state,
                                self.initial_covariance)
@@ -119,13 +120,22 @@ class TestEKF(unittest.TestCase):
             0.0, 0.0, 0.0  # Gyroscope (gx, gy, gz)
         ])
 
-        dt = 0.001
+        dt = 1/200
         seconds = 1
         steps = int(seconds / dt)
 
         # Predict the state using the IMU Measurement
-        for _ in range(steps):
+        for step_n in range(steps):
+            if step_n % int(steps/10) == 0:
+                print('State:')
+                print(self.ekf_wrapper.get_state()[0:3, 0:1])
+                print('Covariance:')
+                print(self.ekf_wrapper.get_state_covariance()[0:3, 0:3])
             self.ekf_wrapper.predict(imu_measurement, dt)
+        print('Final State:')
+        print(self.ekf_wrapper.get_state()[0:3, 0:1])
+        print('Final Covariance:')
+        print(self.ekf_wrapper.get_state_covariance()[0:3, 0:3])
 
         # Check the state and Covariance
         self.assertEqual(self.ekf_wrapper.state.shape,
@@ -141,11 +151,13 @@ class TestEKF(unittest.TestCase):
         # self.assertAlmostEqual(self.ekf_wrapper.get_state().tolist(),
         #                        self.initial_state.tolist(),
         #                        msg="State should match initial state.")
+        # print(self.ekf_wrapper.get_state_covariance()[0:3, 0:3])
 
     def test_predict_2(self):
         """
         Test EKF with 1m/s² in z movement.
         """
+        print("Test 2 - 1m/s² in z movement")
         # Reset EKF
         self.ekf_wrapper.reset(self.initial_state,
                                self.initial_covariance)
@@ -161,8 +173,17 @@ class TestEKF(unittest.TestCase):
         steps = int(seconds / dt)
 
         # Predict the state using the IMU Measurement
-        for _ in range(steps):
+        for step_n in range(steps):
+            if step_n % int(steps/10) == 0:
+                print('State:')
+                print(self.ekf_wrapper.get_state()[0:3, 0:1])
+                print('Covariance:')
+                print(self.ekf_wrapper.get_state_covariance()[0:3, 0:3])
             self.ekf_wrapper.predict(imu_measurement, dt)
+        print('Final State:')
+        print(self.ekf_wrapper.get_state()[0:3, 0:1])
+        print('Final Covariance:')
+        print(self.ekf_wrapper.get_state_covariance()[0:3, 0:3])
 
         # Check the state and Covariance
         self.assertEqual(self.ekf_wrapper.state.shape,
@@ -201,6 +222,7 @@ class TestEKF(unittest.TestCase):
         """
         Test EKF with 1m/s² in z and 1m/s² in x.
         """
+        print("Test 3 - 1m/s² in z and 1m/s² in x")
         # Reset EKF
         self.ekf_wrapper.reset(self.initial_state,
                                self.initial_covariance)
@@ -216,8 +238,17 @@ class TestEKF(unittest.TestCase):
         steps = int(seconds / dt)
 
         # Predict the state using the IMU Measurement
-        for _ in range(steps):
+        for step_n in range(steps):
+            if step_n % int(steps/10) == 0:
+                print('State:')
+                print(self.ekf_wrapper.get_state()[0:3, 0:1])
+                print('Covariance:')
+                print(self.ekf_wrapper.get_state_covariance()[0:3, 0:3])
             self.ekf_wrapper.predict(imu_measurement, dt)
+        print('Final State:')
+        print(self.ekf_wrapper.get_state()[0:3, 0:1])
+        print('Final Covariance:')
+        print(self.ekf_wrapper.get_state_covariance()[0:3, 0:3])
 
         # Check the state and Covariance
         self.assertEqual(self.ekf_wrapper.state.shape,
@@ -253,6 +284,63 @@ class TestEKF(unittest.TestCase):
 
         np.testing.assert_almost_equal(self.ekf_wrapper.get_state(),
                                        self.initial_state + movement)
+
+    def test_predict_4(self):
+        """
+        Test EKF with 1m/s² in x for 1 second and then -1m/s² in x for 1 second.
+        """
+        print("Test 4 - 1m/s² in x for 1 second and then -1m/s² in x for 1 second")
+        # Reset EKF
+        self.ekf_wrapper.reset(self.initial_state,
+                               self.initial_covariance)
+
+        # 1m/s² in x IMU Measurement
+        imu_measurement = np.array([
+            1.0, 0.0, 9.81,  # Accelerometer (ax, ay, az)
+            0.0, 0.0, 0.0  # Gyroscope (gx, gy, gz)
+        ])
+
+        dt = 1/200
+        seconds = 1
+        steps = int(seconds / dt)
+
+        # Predict the state using the IMU Measurement
+        for step_n in range(steps):
+            if step_n % int(steps/10) == 0:
+                print('State:')
+                print(self.ekf_wrapper.get_state()[0:3, 0:1])
+                print('Covariance:')
+                print(self.ekf_wrapper.get_state_covariance()[0:3, 0:3])
+            self.ekf_wrapper.predict(imu_measurement, dt)
+        print('Final State:')
+        print(self.ekf_wrapper.get_state()[0:3, 0:1])
+        print('Final Covariance:')
+        print(self.ekf_wrapper.get_state_covariance()[0:3, 0:3])
+
+        # -1m/s² in x IMU Measurement
+        imu_measurement = np.array([
+            -1.0, 0.0, 9.81,  # Accelerometer (ax, ay, az)
+            0.0, 0.0, 0.0  # Gyroscope (gx, gy, gz)
+        ])
+
+        dt = 1/200
+        seconds = 1
+        steps = int(seconds / dt)
+
+        # Predict the state using the IMU Measurement
+        for step_n in range(steps):
+            if step_n % int(steps/10) == 0:
+                print('State:')
+                print(self.ekf_wrapper.get_state()[0:6, 0:1])
+                print('Covariance:')
+                print(self.ekf_wrapper.get_state_covariance()[0:6, 0:6])
+            self.ekf_wrapper.predict(imu_measurement, dt)
+        print('Final State:')
+        print(self.ekf_wrapper.get_state()[0:6, 0:1])
+        print('Final Covariance:')
+        print(self.ekf_wrapper.get_state_covariance()[0:6, 0:6])
+
+        # Check the state and Covariance
 
 
 if __name__ == '__main__':

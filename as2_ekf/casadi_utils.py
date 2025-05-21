@@ -138,6 +138,56 @@ class Utils():
             Utils.normalize_quaternion(quaternion), w_q)
 
     @staticmethod
+    def euler_apply_rotation(
+            state_orientation: ca.SX,
+            input_acceleration: ca.SX) -> ca.SX:
+        """
+        Apply a rotation to a vector using Euler angles.
+
+        :param state_orientation (ca.SX): The state orientation [roll, pitch, yaw].
+        :param input_acceleration (ca.SX): The acceleration [ax, ay, az].
+
+        :return (ca.SX): The rotated vector [vx_rotated, vy_rotated, vz_rotated].
+        """
+        roll, pitch, yaw = ca.vertsplit(state_orientation)
+        ax, ay, az = ca.vertsplit(input_acceleration)
+
+        # Rotation matrix
+        R = ca.MX([
+            [ca.cos(yaw) * ca.cos(pitch), ca.sin(roll) * ca.sin(pitch) * ca.cos(yaw) - ca.cos(roll) * ca.sin(yaw),
+             ca.cos(roll) * ca.sin(pitch) * ca.cos(yaw) + ca.sin(roll) * ca.sin(yaw)],
+            [ca.sin(yaw) * ca.cos(pitch), ca.sin(roll) * ca.sin(pitch) * ca.sin(yaw) + ca.cos(roll) * ca.cos(yaw),
+             ca.cos(roll) * ca.sin(pitch) * ca.sin(yaw) - ca.sin(roll) * ca.cos(yaw)],
+            [-ca.sin(pitch), ca.sin(roll) * ca.cos(pitch),
+             ca.cos(roll) * ca.cos(pitch)]
+        ])
+
+        return R @ input_acceleration
+
+    @staticmethod
+    def euler_rotation_derivative(
+            state_orientation: ca.SX,
+            input_angular_velocity: ca.SX) -> ca.SX:
+        """
+        Compute the Euler angles derivative.
+
+        :param state_orientation (ca.SX): The state orientation [roll, pitch, yaw].
+        :param input_angular_velocity (ca.SX): The angular velocity [wx, wy, wz].
+
+        :return (ca.SX): The Euler angles derivative [roll_dot, pitch_dot, yaw_dot].
+        """
+        roll, pitch, yaw = ca.vertsplit(state_orientation)
+        wx, wy, wz = ca.vertsplit(input_angular_velocity)
+
+        roll_dot = wx + wy * \
+            ca.sin(roll) * ca.tan(pitch) + wz * ca.cos(roll) * ca.tan(pitch)
+        pitch_dot = wy * ca.cos(roll) - wz * ca.sin(roll)
+        yaw_dot = wy * ca.sin(roll) / ca.cos(pitch) + \
+            wz * ca.cos(roll) / ca.cos(pitch)
+
+        return ca.vertcat(roll_dot, pitch_dot, yaw_dot)
+
+    @staticmethod
     def velocity_derivative(
             state_orientation: ca.SX,
             input_acceleration: ca.SX,
@@ -150,7 +200,7 @@ class Utils():
         roll, pitch, yaw = ca.vertsplit(state_orientation)
         iax, iay, iaz = ca.vertsplit(input_acceleration)
 
-        # v_dot = Utils.apply_rotation(
+        # v_dot = Utils.euler_apply_rotation(
         #     state_orientation,
         #     input_acceleration
         # )
