@@ -130,7 +130,7 @@ class EKFWrapper:
         imu_noise = self.imu_noise + self.random_walk * dt
         process_noise_covariance = self.process_noise_covariance + \
             self.random_walk_covariance * dt
-        X_new, P_new = self.ekf.predict_function(
+        X_new, P_new, f_update = self.ekf.predict_function(
             self.state,
             imu_measurement,
             imu_noise,
@@ -140,6 +140,8 @@ class EKFWrapper:
         )
         self.state = X_new
         self.state_covariance = P_new
+
+        return f_update
 
         # return F, L
 

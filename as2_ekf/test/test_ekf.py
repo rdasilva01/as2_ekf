@@ -64,13 +64,13 @@ class TestEKF_Utils():
             if verbose:
                 if step_n % int(steps/10) == 0:
                     print('State:')
-                    print(ekf_wrapper.get_state()[0:6, 0:1])
+                    print(ekf_wrapper.get_state()[0:9, 0:1])
                     print('Covariance:')
                     print(ekf_wrapper.get_state_covariance()[0:6, 0:6])
             ekf_wrapper.predict(imu_measurement, dt)
         if verbose:
             print('Final State:')
-            print(ekf_wrapper.get_state()[0:6, 0:1])
+            print(ekf_wrapper.get_state()[0:9, 0:1])
             print('Final Covariance:')
             print(ekf_wrapper.get_state_covariance()[0:6, 0:6])
 
@@ -86,15 +86,6 @@ class TestEKF_Utils():
         :param seconds (float): The number of seconds to read.
         :return: The computed movement.
         """
-        # position_z = initial_state[2, 0] + initial_state[5, 0] * seconds + \
-        #     0.5 * (imu_measurement[2] - 9.81) * seconds ** 2
-        # velocity_z = initial_state[5, 0] + \
-        #     (imu_measurement[2] - 9.81) * seconds
-
-        # position_x = initial_state[0, 0] + \
-        #     initial_state[3, 0] * seconds + \
-        #     0.5 * imu_measurement[0] * seconds ** 2
-        # velocity_x = initial_state[3, 0] + imu_measurement[0] * seconds
 
         position = initial_state[0:3, 0] + \
             initial_state[3:6, 0] * seconds + \
@@ -236,7 +227,7 @@ class TestEKF(unittest.TestCase):
         values = [1.0, -1.0, 100.0, -100.0]
         axis_names = ['x', 'y', 'z']
         for value in values:
-            for axis in range(3):
+            for axis in range(len(axis_names)):
                 # Reset EKF
                 self.ekf_wrapper.reset(self.initial_state,
                                        self.initial_covariance)
@@ -271,7 +262,7 @@ class TestEKF(unittest.TestCase):
         values = [1.0, -1.0, 100.0, -100.0]
         axis_names = ['x', 'y', 'z']
         for value in values:
-            for axis in range(3):
+            for axis in range(len(axis_names)):
                 # Reset EKF
                 self.ekf_wrapper.reset(self.initial_state,
                                        self.initial_covariance)
@@ -298,6 +289,61 @@ class TestEKF(unittest.TestCase):
                 print(self.ekf_wrapper.get_state()[0:6, 0:1])
                 print('Final Covariance:')
                 print(self.ekf_wrapper.get_state_covariance()[0:6, 0:6])
+
+    def test_predict_4(self):
+        """
+        Test EKF with 1,5708rad/s.
+        """
+        print("Test 4 - 1,5708rad/s.")
+        # Base
+        base_measurement = np.array([
+            0.0, 0.0, 9.81,  # Accelerometer (ax, ay, az)
+            0.0, 0.0, 0.0  # Gyroscope (gx, gy, gz)
+        ])
+        dt = 1/200
+        seconds = 1
+        # Reset EKF
+        self.ekf_wrapper.reset(self.initial_state,
+                               self.initial_covariance)
+        imu_measurement = base_measurement.copy()
+        imu_measurement[5] = 1.5708  # 90 degrees in rad/s
+        print("Testing with 1,5708 rad/s in z axis")
+        TestEKF_Utils.read_imu_for_seconds(
+            self.ekf_wrapper, imu_measurement, dt, seconds, verbose=False)
+        imu_measurement = base_measurement.copy()
+        imu_measurement[0] = 1.0
+        seconds = 2
+        TestEKF_Utils.read_imu_for_seconds(
+            self.ekf_wrapper, imu_measurement, dt, seconds, verbose=False)
+        print('Final State:')
+        print(self.ekf_wrapper.get_state()[0:9, 0:1])
+        print('Final Covariance:')
+        print(self.ekf_wrapper.get_state_covariance()[0:9, 0:9])
+
+    def test_predict_5(self):
+        """
+        Test EKF with rotation in Y axis.
+        """
+        print("Test 5 - Rotation in Y axis.")
+        # Base
+        base_measurement = np.array([
+            0.0, 0.0, 10.81,  # Accelerometer (ax, ay, az)
+            0.0, 0.0, 0.0  # Gyroscope (gx, gy, gz)
+        ])
+        dt = 1/200
+        # Reset EKF
+        self.ekf_wrapper.reset(self.initial_state,
+                               self.initial_covariance)
+        imu_measurement = base_measurement.copy()
+        imu_measurement[4] = 1.5708
+        seconds = 0.5
+        TestEKF_Utils.read_imu_for_seconds(
+            self.ekf_wrapper, imu_measurement, dt, seconds, verbose=True)
+        imu_measurement = base_measurement.copy()
+        imu_measurement[4] = -1.5708
+        seconds = 0.5
+        TestEKF_Utils.read_imu_for_seconds(
+            self.ekf_wrapper, imu_measurement, dt, seconds, verbose=True)
 
 
 if __name__ == '__main__':

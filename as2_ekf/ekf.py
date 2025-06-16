@@ -44,7 +44,7 @@ class EKF():
     Extended Kalman Filter (EKF) class.
     """
 
-    def f_continuous(self, X, input_acc):
+    def f_continuous(self, X, input_acc, input_angular_velocity):
         """
         Continuous time state transition function.
         :param X: State vector.
@@ -58,7 +58,11 @@ class EKF():
             input_acc,
             self.g
         )  # R(q)*(a_meas − b_a) + g
-        q_dot = ca.SX.zeros(3, 1)  # rotation derivative placeholder
+        # q_dot = ca.SX.zeros(3, 1)  # rotation derivative placeholder
+        q_dot = Utils.euler_rotation_derivative(
+            X[6:9],
+            input_angular_velocity,
+        )
         biases_dot = ca.SX.zeros(6, 1)  # biases are constant
         # New state
         return ca.vertcat(
@@ -116,13 +120,17 @@ class EKF():
 
         # Runge-Kutta 4th order integration for state transition function
         k1 = self.f_continuous(self.X,
-                               input_wo_noise_acceleration)
+                               input_wo_noise_acceleration,
+                               input_wo_noise_angular_velocity)
         k2 = self.f_continuous(self.X + 0.5 * self.dt * k1,
-                               input_wo_noise_acceleration)
+                               input_wo_noise_acceleration,
+                               input_wo_noise_angular_velocity)
         k3 = self.f_continuous(self.X + 0.5 * self.dt * k2,
-                               input_wo_noise_acceleration)
+                               input_wo_noise_acceleration,
+                               input_wo_noise_angular_velocity)
         k4 = self.f_continuous(self.X + self.dt * k3,
-                               input_wo_noise_acceleration)
+                               input_wo_noise_acceleration,
+                               input_wo_noise_angular_velocity)
 
         self.f = self.X + (self.dt / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
@@ -191,9 +199,9 @@ class EKF():
         self.predict_function = ca.Function(
             'predict_function',
             [self.X, self.U, self.W, self.dt, self.P, self.aux_Q_vector],
-            [self.X_pred, self.P_pred],
+            [self.X_pred, self.P_pred, self.f],
             ['X', 'U', 'W', 'dt', 'P', 'Q'],
-            ['X_pred', 'P_pred']
+            ['X_pred', 'P_pred', 'f_update']
         )
         # Define the CasADi function for update
         self.update_function = ca.Function(

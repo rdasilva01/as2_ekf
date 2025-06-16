@@ -153,14 +153,26 @@ class Utils():
         ax, ay, az = ca.vertsplit(input_acceleration)
 
         # Rotation matrix
-        R = ca.MX([
-            [ca.cos(yaw) * ca.cos(pitch), ca.sin(roll) * ca.sin(pitch) * ca.cos(yaw) - ca.cos(roll) * ca.sin(yaw),
-             ca.cos(roll) * ca.sin(pitch) * ca.cos(yaw) + ca.sin(roll) * ca.sin(yaw)],
-            [ca.sin(yaw) * ca.cos(pitch), ca.sin(roll) * ca.sin(pitch) * ca.sin(yaw) + ca.cos(roll) * ca.cos(yaw),
-             ca.cos(roll) * ca.sin(pitch) * ca.sin(yaw) - ca.sin(roll) * ca.cos(yaw)],
-            [-ca.sin(pitch), ca.sin(roll) * ca.cos(pitch),
-             ca.cos(roll) * ca.cos(pitch)]
-        ])
+        row1 = ca.horzcat(
+            ca.cos(yaw) * ca.cos(pitch),
+            ca.sin(roll) * ca.sin(pitch) * ca.cos(yaw) -
+            ca.cos(roll) * ca.sin(yaw),
+            ca.cos(roll) * ca.sin(pitch) * ca.cos(yaw) +
+            ca.sin(roll) * ca.sin(yaw)
+        )
+        row2 = ca.horzcat(
+            ca.sin(yaw) * ca.cos(pitch),
+            ca.sin(roll) * ca.sin(pitch) * ca.sin(yaw) +
+            ca.cos(roll) * ca.cos(yaw),
+            ca.cos(roll) * ca.sin(pitch) * ca.sin(yaw) -
+            ca.sin(roll) * ca.cos(yaw)
+        )
+        row3 = ca.horzcat(
+            -ca.sin(pitch),
+            ca.sin(roll) * ca.cos(pitch),
+            ca.cos(roll) * ca.cos(pitch)
+        )
+        R = ca.vertcat(row1, row2, row3)
 
         return R @ input_acceleration
 
@@ -200,11 +212,11 @@ class Utils():
         roll, pitch, yaw = ca.vertsplit(state_orientation)
         iax, iay, iaz = ca.vertsplit(input_acceleration)
 
-        # v_dot = Utils.euler_apply_rotation(
-        #     state_orientation,
-        #     input_acceleration
-        # )
-        v_dot = input_acceleration
+        v_dot = Utils.euler_apply_rotation(
+            state_orientation,
+            input_acceleration
+        )
+        # v_dot = input_acceleration
 
         return ca.vertcat(
             v_dot[0],

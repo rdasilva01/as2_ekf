@@ -55,20 +55,20 @@ class EKFNode(Node):
         accelerometer_random_walk = 8.055323021637122e-05
         gyroscope_noise_density = 0.00011090831806067944
         gyroscope_random_walk = 2.5135360798417067e-06
-        # accelerometer_noise_density = 0.01
-        # accelerometer_random_walk = 0.1
-        # gyroscope_noise_density = 0.001
-        # gyroscope_random_walk = 0.01
+        # accelerometer_noise_density = 0.001
+        # accelerometer_random_walk = 0.00001
+        # gyroscope_noise_density = 0.0001
+        # gyroscope_random_walk = 0.000001
 
         # Example parameters
         initial_state = np.array([
             0.0, 0.0, 0.0,  # Position (x, y, z)
             0.0, 0.0, 0.0,  # Velocity (vx, vy, vz)
-            0.0, 0.0, 0.0,  # Orientation (roll, pitch, yaw)
+            0.0, 0.0, 3.14,  # Orientation (roll, pitch, yaw)
             0.0, 0.0, 0.0,
             0.0, 0.0, 0.0
         ])
-        initial_covariance = np.ones((15, 15)) * 1e-5
+        initial_covariance = np.ones((15, 15)) * 0.001
 
         print("Initial state:", initial_state)
         print("Initial covariance diagonal:", initial_covariance)
@@ -105,7 +105,7 @@ class EKFNode(Node):
         )
 
         self.last_time = 0.0
-        self.current_time = 0.0001
+        self.current_time = 0.0
         self.imu_counter = 0
 
     def imu_callback(self, msg):
@@ -120,20 +120,21 @@ class EKFNode(Node):
             msg.angular_velocity.z
         ])
 
-        if self.imu_counter != 0:
-            self.current_time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        self.last_time = self.current_time
+        self.current_time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
         dt = self.current_time - self.last_time
+        if self.imu_counter == 0:
+            dt = 1/200
         print("dt:", dt)
 
         self.ekf_wrapper.predict(imu_measurement, dt)
-        self.last_time = self.current_time
         self.imu_counter += 1
 
         # Publish the odometry message
         state = self.ekf_wrapper.get_state()
         covariance = self.ekf_wrapper.get_state_covariance()
         print("State after prediction:", state)
-        print("State covariance after prediction:", covariance)
+        # print("State covariance after prediction:", covariance)
         odom_msg = Odometry()
         odom_msg.header.stamp = msg.header.stamp
         odom_msg.header.frame_id = 'earth'
@@ -161,6 +162,9 @@ class EKFNode(Node):
         print("Odometry covariance:")
         print(odom_msg.twist.covariance)
         self.odom_publisher.publish(odom_msg)
+
+        # if self.imu_counter == 10:
+        #     exit()
 
     def pose_callback(self, msg):
         # Process initial pose data
