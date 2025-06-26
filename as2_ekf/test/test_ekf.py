@@ -119,7 +119,14 @@ class TestEKF(unittest.TestCase):
         ])
         self.initial_state = np.atleast_2d(self.initial_state).T
         # print(self.initial_state)
-        self.initial_covariance = np.eye(15) * 1e-2
+        self.initial_covariance = np.eye(15) * 0.0
+        # self.initial_covariance = np.diag([
+        #     1e-2, 1e-2, 1e-2,  # Position covariance
+        #     1e-3, 1e-3, 1e-3,  # Velocity covariance
+        #     1e-4, 1e-4, 1e-4,  # Orientation covariance
+        #     1e-4, 1e-4, 1e-4,
+        #     1e-6, 1e-6, 1e-6
+        # ])
 
         self.accelerometer_noise_density = 1e-2
         self.accelerometer_random_walk = 1e-4
@@ -327,7 +334,7 @@ class TestEKF(unittest.TestCase):
         print("Test 5 - Rotation in Y axis.")
         # Base
         base_measurement = np.array([
-            0.0, 0.0, 10.81,  # Accelerometer (ax, ay, az)
+            0.0, 0.0, 9.81,  # Accelerometer (ax, ay, az)
             0.0, 0.0, 0.0  # Gyroscope (gx, gy, gz)
         ])
         dt = 1/200
@@ -344,6 +351,126 @@ class TestEKF(unittest.TestCase):
         seconds = 0.5
         TestEKF_Utils.read_imu_for_seconds(
             self.ekf_wrapper, imu_measurement, dt, seconds, verbose=True)
+
+    def test_update_1(self):
+        """
+        Test EKF update with pose measurement.
+        """
+        print("Test 6 - Update with pose measurement.")
+        # Base
+        base_measurement = np.array([
+            0.0, 0.0, 9.81,  # Accelerometer (ax, ay, az)
+            0.0, 0.0, 0.0  # Gyroscope (gx, gy, gz)
+        ])
+        dt = 1/200
+
+        # Reset EKF
+        self.ekf_wrapper.reset(self.initial_state,
+                               self.initial_covariance)
+
+        # Simulate a pose measurement
+        pose_measurement = np.array([
+            1.0, 1.0, 1.0,  # Position (x, y, z)
+            0.0, 0.0, 0.0,  # Orientation (roll, pitch, yaw)
+        ])
+
+        print('State before predict:')
+        print(self.ekf_wrapper.get_state()[0:6, 0:1])
+        print('Covariance before predict:')
+        print(self.ekf_wrapper.get_state_covariance()[0:6, 0:6])
+
+        imu_measurement = base_measurement.copy()
+        # imu_measurement[0] = 1.0
+
+        print('IMU measurement:')
+        print(imu_measurement)
+
+        seconds = 1
+        TestEKF_Utils.read_imu_for_seconds(
+            self.ekf_wrapper, imu_measurement, dt, seconds)
+
+        print('State before update:')
+        print(self.ekf_wrapper.get_state()[0:6, 0:1])
+        print('Covariance before update:')
+        print(self.ekf_wrapper.get_state_covariance()[0:6, 0:6])
+
+        self.ekf_wrapper.update_pose(pose_measurement, np.ones(6) * 1e-12)
+
+        print('State after pose update:')
+        print(self.ekf_wrapper.get_state()[0:6, 0:1])
+        print('Covariance after pose update:')
+        print(self.ekf_wrapper.get_state_covariance()[0:6, 0:6])
+
+        np.testing.assert_almost_equal(
+            self.ekf_wrapper.get_state()[0:3, 0],
+            np.array([1.0, 1.0, 1.0]),
+            decimal=4,
+            err_msg="Position should match.",
+            verbose=True)
+
+    def test_update_2(self):
+        """
+        Test EKF update with pose + velocity measurement.
+        """
+        print("Test 7 - Update with pose measurement.")
+        # Base
+        base_measurement = np.array([
+            0.0, 0.0, 9.81,  # Accelerometer (ax, ay, az)
+            0.0, 0.0, 0.0  # Gyroscope (gx, gy, gz)
+        ])
+        dt = 1/200
+
+        # Reset EKF
+        self.ekf_wrapper.reset(self.initial_state,
+                               self.initial_covariance)
+
+        # Simulate a pose measurement
+        pose_measurement = np.array([
+            0.0, 0.0, 0.0,  # Position (x, y, z)
+            0.0, 0.0, 0.0,  # Orientation (roll, pitch, yaw)
+            1.0, 0.0, 0.0,  # Velocity (vx, vy, vz)
+        ])
+
+        print('State before update:')
+        print(self.ekf_wrapper.get_state()[0:6, 0:1])
+        print('Covariance before update:')
+        print(self.ekf_wrapper.get_state_covariance()[0:6, 0:6])
+
+        imu_measurement = base_measurement.copy()
+        # imu_measurement[0] = 1.0
+
+        print('IMU measurement:')
+        print(imu_measurement)
+
+        for i in range(1):
+
+            seconds = 1
+            TestEKF_Utils.read_imu_for_seconds(
+                self.ekf_wrapper, imu_measurement, dt, seconds)
+
+            # print('State after update:')
+            # print(self.ekf_wrapper.get_state()[0:6, 0:1])
+            # print('Covariance after update:')
+            # print(self.ekf_wrapper.get_state_covariance()[0:6, 0:6])
+
+            self.ekf_wrapper.update_pose_velocity(
+                pose_measurement, np.ones(9) * 1e-12)
+
+        seconds = 1
+        TestEKF_Utils.read_imu_for_seconds(
+            self.ekf_wrapper, imu_measurement, dt, seconds)
+
+        print('State after pose update:')
+        print(self.ekf_wrapper.get_state()[0:6, 0:1])
+        print('Covariance after pose update:')
+        print(self.ekf_wrapper.get_state_covariance()[0:6, 0:6])
+
+        np.testing.assert_almost_equal(
+            self.ekf_wrapper.get_state()[0:3, 0],
+            np.array([1.0, 0.0, 0.0]),
+            decimal=4,
+            err_msg="Position should match.",
+            verbose=True)
 
 
 if __name__ == '__main__':

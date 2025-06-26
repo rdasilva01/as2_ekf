@@ -219,9 +219,9 @@ class Utils():
         # v_dot = input_acceleration
 
         return ca.vertcat(
-            v_dot[0],
-            v_dot[1],
-            v_dot[2] - gravity
+            v_dot[0] - gravity[0],
+            v_dot[1] - gravity[1],
+            v_dot[2] - gravity[2]
         )
 
     @staticmethod

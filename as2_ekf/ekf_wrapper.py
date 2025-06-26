@@ -88,6 +88,7 @@ class EKFWrapper:
             # Gyroscope random walk covariance
             gyroscope_random_walk ** 2, gyroscope_random_walk ** 2, gyroscope_random_walk ** 2
         ])
+        self.gravity = np.array([0.0, 0.0, 9.81])  # Gravity vector in m/s^2
 
     def reset(self,
               initial_state: np.ndarray,
@@ -130,31 +131,53 @@ class EKFWrapper:
         imu_noise = self.imu_noise + self.random_walk * dt
         process_noise_covariance = self.process_noise_covariance + \
             self.random_walk_covariance * dt
-        X_new, P_new, f_update = self.ekf.predict_function(
+        # print("imu_noise:", imu_noise)
+        # print("process_noise_covariance:", process_noise_covariance)
+        X_new, P_new, acc_in_world = self.ekf.predict_function(
             self.state,
             imu_measurement,
             imu_noise,
             dt,
             self.state_covariance,
-            process_noise_covariance
+            process_noise_covariance,
+            self.gravity,
         )
         self.state = X_new
         self.state_covariance = P_new
 
-        return f_update
+        return acc_in_world
 
         # return F, L
 
-    def update(self,
-               z: np.ndarray,
-               measurement_noise_covariance: np.ndarray):
+    def update_pose(self,
+                    z: np.ndarray,
+                    measurement_noise_covariance: np.ndarray):
         """
-        Update the state with a new measurement.
+        Update the state with a new pose measurement.
 
-        :param z (np.ndarray): The measurement vector.
+        :param z (np.ndarray): The measurement (pose) vector.
         :param measurement_noise_covariance (np.ndarray): The measurement noise covariance matrix.
         """
-        X_new, P_new = self.ekf.update_function(
+        X_new, P_new = self.ekf.update_pose_function(
+            self.state,
+            self.imu_noise,
+            z,
+            self.state_covariance,
+            measurement_noise_covariance,
+        )
+        self.state = X_new
+        self.state_covariance = P_new
+
+    def update_pose_velocity(self,
+                             z: np.ndarray,
+                             measurement_noise_covariance: np.ndarray):
+        """
+        Update the state with a new pose and velocity measurement.
+
+        :param z (np.ndarray): The measurement (pose + velocity) vector.
+        :param measurement_noise_covariance (np.ndarray): The measurement noise covariance matrix.
+        """
+        X_new, P_new = self.ekf.update_pose_velocity_function(
             self.state,
             self.imu_noise,
             z,

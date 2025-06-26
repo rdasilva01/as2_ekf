@@ -78,7 +78,8 @@ class EKF():
         """
         # Time step
         self.dt = ca.SX.sym('dt')
-        self.g = ca.DM(9.81)  # Gravity constant
+        # self.g = ca.DM(9.81)  # Gravity constant
+        self.g = ca.SX.sym('g', 3)  # Gravity vector (3D)
 
         # State vector
         # x, y, z, vx, vy, vz, roll, pitch, yaw, abx, aby, abz, wbx, wby, wbz
@@ -132,28 +133,40 @@ class EKF():
                                input_wo_noise_acceleration,
                                input_wo_noise_angular_velocity)
 
-        self.f = self.X + (self.dt / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
+        self.f_step = (k1 + 2 * k2 + 2 * k3 + k4) / 6
+        self.f = self.X + self.dt * self.f_step
+
+        acc_in_world = self.f_step[3:6]
 
         # print(self.f)
 
-        # Output function
+        # Output function pose
         # x, y, z, roll, pitch, yaw
-        self.h = ca.vertcat(
+        self.h_pose = ca.vertcat(
             state_position,
-            # Utils.normalize_quaternion(state_orientation)
             state_orientation,
+        )
+
+        # Output function pose and velocity
+        # x, y, z, roll, pitch, yaw, vx, vy, vz
+        self.h_pose_velocity = ca.vertcat(
+            state_position,
+            state_orientation,
+            state_velocity
         )
 
         # Jacobians
         self.F = ca.jacobian(self.f, self.X)
         self.L = ca.jacobian(self.f, self.W)
-        self.H = ca.jacobian(self.h, self.X)
+        self.H_pose = ca.jacobian(self.h_pose, self.X)
+        self.H_pose_velocity = ca.jacobian(self.h_pose_velocity, self.X)
 
         # Substitute W with 0
         self.f = ca.substitute(self.f, self.W, 0)
         self.F = ca.substitute(self.F, self.W, 0)
         self.L = ca.substitute(self.L, self.W, 0)
-        self.H = ca.substitute(self.H, self.W, 0)
+        self.H_pose = ca.substitute(self.H_pose, self.W, 0)
+        self.H_pose_velocity = ca.substitute(self.H_pose_velocity, self.W, 0)
 
         # print("F:", self.F)
         # print("L:", self.L)
@@ -170,44 +183,78 @@ class EKF():
                 if i == j:
                     self.Q[i, j] = self.aux_Q_vector[i]
 
-        # Measurement Noise covariance matrix
-        self.aux_R_vector = ca.SX.sym('R', self.h.size()[0])
-        self.R = ca.SX.zeros(self.h.size()[0], self.h.size()[0])
-        for i in range(self.h.size()[0]):
-            for j in range(i, self.h.size()[0]):
-                if i == j:
-                    self.R[i, j] = self.aux_R_vector[i]
-
-        self.Z = ca.SX.sym('Z', self.h.size()[0])
-
         # Predict step
         self.X_pred = self.f
         self.P_pred = self.F @ self.P @ self.F.T + self.L @ self.Q @ self.L.T
 
-        # Update step
-        self.Y_residual = self.Z - self.h
-        self.S = self.H @ self.P @ self.H.T + self.R
-        self.K = self.P @ self.H.T @ ca.pinv(self.S)
-        # self.X_update = Utils.state_quaternion_normalization(
-        #     self.X + self.K @ self.Y_residual)
-        self.X_update = self.X + self.K @ self.Y_residual
-        self.P_update = (
-            ca.SX.eye(self.X.size()[0]) - self.K @ self.H) @ self.P
+        # Update step with pose measurement
+        # Measurement vector (pose)
+        self.Z_pose = ca.SX.sym('Z_pose', self.h_pose.size()[0])
+        # Measurement Noise covariance matrix
+        self.aux_R_vector_pose = ca.SX.sym('R_pose', self.h_pose.size()[0])
+        self.R_pose = ca.SX.zeros(self.h_pose.size()[0], self.h_pose.size()[0])
+        for i in range(self.h_pose.size()[0]):
+            for j in range(i, self.h_pose.size()[0]):
+                if i == j:
+                    self.R_pose[i, j] = self.aux_R_vector_pose[i]
+
+        self.Y_residual_pose = self.Z_pose - self.h_pose
+        self.S_pose = self.H_pose @ self.P @ self.H_pose.T + self.R_pose
+        self.K_pose = self.P @ self.H_pose.T @ ca.pinv(self.S_pose)
+
+        self.X_update_pose = self.X + self.K_pose @ self.Y_residual_pose
+        self.P_update_pose = (
+            ca.SX.eye(self.X.size()[0]) - self.K_pose @ self.H_pose) @ self.P
+
+        # Update step with pose and velocity measurement
+        # Measurement vector (pose and velocity)
+        self.Z_pose_velocity = ca.SX.sym(
+            'Z_pose_velocity', self.h_pose_velocity.size()[0])
+        # Measurement Noise covariance matrix
+        self.aux_R_vector_pose_velocity = ca.SX.sym(
+            'R_pose_velocity', self.h_pose_velocity.size()[0])
+        self.R_pose_velocity = ca.SX.zeros(self.h_pose_velocity.size()[
+                                           0], self.h_pose_velocity.size()[0])
+        for i in range(self.h_pose_velocity.size()[0]):
+            for j in range(i, self.h_pose_velocity.size()[0]):
+                if i == j:
+                    self.R_pose_velocity[i,
+                                         j] = self.aux_R_vector_pose_velocity[i]
+
+        self.Y_residual_pose_velocity = self.Z_pose_velocity - self.h_pose_velocity
+        self.S_pose_velocity = self.H_pose_velocity @ self.P @ self.H_pose_velocity.T + \
+            self.R_pose_velocity
+        self.K_pose_velocity = self.P @ self.H_pose_velocity.T @ ca.pinv(
+            self.S_pose_velocity)
+
+        self.X_update_pose_velocity = self.X + \
+            self.K_pose_velocity @ self.Y_residual_pose_velocity
+        self.P_update_pose_velocity = (
+            ca.SX.eye(self.X.size()[0]) - self.K_pose_velocity @ self.H_pose_velocity) @ self.P
 
         # Functions
         # Define the CasADi function for prediction
         self.predict_function = ca.Function(
             'predict_function',
-            [self.X, self.U, self.W, self.dt, self.P, self.aux_Q_vector],
-            [self.X_pred, self.P_pred, self.f],
-            ['X', 'U', 'W', 'dt', 'P', 'Q'],
-            ['X_pred', 'P_pred', 'f_update']
+            [self.X, self.U, self.W, self.dt, self.P, self.aux_Q_vector, self.g],
+            [self.X_pred, self.P_pred, acc_in_world],
+            ['X', 'U', 'W', 'dt', 'P', 'Q', 'g'],
+            ['X_pred', 'P_pred', 'acc_in_world']
         )
-        # Define the CasADi function for update
-        self.update_function = ca.Function(
-            'update_function',
-            [self.X, self.W, self.Z, self.P, self.aux_R_vector],
-            [self.X_update, self.P_update],
-            ['X', 'W', 'Z', 'P', 'R'],
-            ['X_update', 'P_update']
+        # Define the CasADi function for update with pose measurement
+        self.update_pose_function = ca.Function(
+            'update_pose_function',
+            [self.X, self.W, self.Z_pose, self.P, self.aux_R_vector_pose],
+            [self.X_update_pose, self.P_update_pose],
+            ['X', 'W', 'Z_pose', 'P', 'R_pose'],
+            ['X_update_pose', 'P_update_pose']
+        )
+        # Define the CasADi function for update with pose and velocity measurement
+        self.update_pose_velocity_function = ca.Function(
+            'update_pose_velocity_function',
+            [self.X, self.W, self.Z_pose_velocity,
+                self.P, self.aux_R_vector_pose_velocity],
+            [self.X_update_pose_velocity, self.P_update_pose_velocity],
+            ['X', 'W', 'Z_pose_velocity', 'P', 'R_pose_velocity'],
+            ['X_update_pose_velocity', 'P_update_pose_velocity']
         )
