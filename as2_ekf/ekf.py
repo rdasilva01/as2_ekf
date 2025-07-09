@@ -94,6 +94,10 @@ class EKF():
         state_orientation = self.X[6:9]
         state_accelerometer_bias = self.X[9:12]
         state_gyrometer_bias = self.X[12:15]
+        state_bias = ca.vertcat(
+            state_accelerometer_bias,
+            state_gyrometer_bias
+        )
 
         # Inputs
         # axm, aym, azm, wxm, wym, wzm
@@ -111,9 +115,9 @@ class EKF():
         input_noise_acceleration = self.W[0:3]
         input_noise_angular_velocity = self.W[3:6]
 
-        # Inputs without noise
+        # Inputs without bias and noise
         # iax, iay, iaz, iwx, iwy, iwz
-        self.IN = self.U - self.W
+        self.IN = self.U - state_bias - self.W
         # self.iax, self.iay, self.iaz, \
         #     self.iwx, self.iwy, self.iwz = ca.vertsplit(self.IN)
         input_wo_noise_acceleration = self.IN[0:3]
@@ -176,16 +180,18 @@ class EKF():
         self.P = ca.SX.sym('P', self.X.size()[0], self.X.size()[0])
 
         # Process Noise covariance matrix
-        self.aux_Q_vector = ca.SX.sym('Q', self.W.size()[0])
-        self.Q = ca.SX.zeros(self.W.size()[0], self.W.size()[0])
-        for i in range(self.W.size()[0]):
-            for j in range(i, self.W.size()[0]):
-                if i == j:
-                    self.Q[i, j] = self.aux_Q_vector[i]
+        # self.aux_Q_vector = ca.SX.sym('Q', self.W.size()[0])
+        # self.Q = ca.SX.zeros(self.W.size()[0], self.W.size()[0])
+        # for i in range(self.W.size()[0]):
+        #     for j in range(i, self.W.size()[0]):
+        #         if i == j:
+        #             self.Q[i, j] = self.aux_Q_vector[i]
+        self.Q = ca.SX.sym('Q', self.X.size()[0], self.X.size()[0])
 
         # Predict step
         self.X_pred = self.f
-        self.P_pred = self.F @ self.P @ self.F.T + self.L @ self.Q @ self.L.T
+        # self.P_pred = self.F @ self.P @ self.F.T + self.L @ self.Q @ self.L.T
+        self.P_pred = self.F @ self.P @ self.F.T + self.Q
 
         # Update step with pose measurement
         # Measurement vector (pose)
@@ -234,9 +240,16 @@ class EKF():
 
         # Functions
         # Define the CasADi function for prediction
+        # self.predict_function = ca.Function(
+        #     'predict_function',
+        #     [self.X, self.U, self.W, self.dt, self.P, self.aux_Q_vector, self.g],
+        #     [self.X_pred, self.P_pred, acc_in_world],
+        #     ['X', 'U', 'W', 'dt', 'P', 'Q', 'g'],
+        #     ['X_pred', 'P_pred', 'acc_in_world']
+        # )
         self.predict_function = ca.Function(
             'predict_function',
-            [self.X, self.U, self.W, self.dt, self.P, self.aux_Q_vector, self.g],
+            [self.X, self.U, self.W, self.dt, self.P, self.Q, self.g],
             [self.X_pred, self.P_pred, acc_in_world],
             ['X', 'U', 'W', 'dt', 'P', 'Q', 'g'],
             ['X_pred', 'P_pred', 'acc_in_world']

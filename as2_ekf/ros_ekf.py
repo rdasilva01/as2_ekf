@@ -39,150 +39,32 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
 from sensor_msgs.msg import Imu
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, TransformStamped
 from nav_msgs.msg import Odometry
 
-from ekf_wrapper import EKFWrapper
+from ekf_wrapper import EKFWrapper, pose_to_transform
 import numpy as np
+from tf2_ros import StaticTransformBroadcaster, TransformBroadcaster
+from as2_ekf.transform_utils import *
 # import tf_transformations as tf
-
-
-def normalize_quaternion(q: np.ndarray) -> np.ndarray:
-    """
-    Normalize a quaternion.
-
-    :param q: The quaternion to normalize, shape (4,), [qw, qx, qy, qz].
-    :type q: np.ndarray
-    :return: The normalized quaternion.
-    :rtype: np.ndarray
-    """
-    norm = np.linalg.norm(q)
-    if norm == 0:
-        norm = 1e-6
-    return q / norm
-
-
-def quaternion_to_euler(q: np.ndarray) -> np.ndarray:
-    """
-    Convert a quaternion to Euler angles (roll, pitch, yaw).
-
-    :param q: The quaternion [qw, qx, qy, qz], shape (4,).
-    :type q: np.ndarray
-    :return: The Euler angles [roll, pitch, yaw], shape (3,).
-    :rtype: np.ndarray
-    """
-    # First, normalize the quaternion to ensure a valid rotation
-    q_normed = normalize_quaternion(q)
-    qw, qx, qy, qz = q_normed
-
-    # --- Roll (x-axis rotation) ---
-    # sinr_cosp = 2 * (qw * qx + qy * qz)
-    sinr_cosp = 2.0 * (qw * qx + qy * qz)
-    # cosr_cosp = 1 - 2 * (qx^2 + qy^2)
-    cosr_cosp = 1.0 - 2.0 * (qx * qx + qy * qy)
-    roll = np.arctan2(sinr_cosp, cosr_cosp)
-
-    # --- Pitch (y-axis rotation) ---
-    # sinp = 2 * (qw * qy - qz * qx)
-    sinp = 2.0 * (qw * qy - qz * qx)
-    # Clamp sinp to [-1, 1] to avoid invalid domain for arcsin
-    sinp_clamped = np.clip(sinp, -1.0, 1.0)
-    pitch = np.arcsin(sinp_clamped)
-
-    # --- Yaw (z-axis rotation) ---
-    # siny_cosp = 2 * (qw * qz + qx * qy)
-    siny_cosp = 2.0 * (qw * qz + qx * qy)
-    # cosy_cosp = 1 - 2 * (qy^2 + qz^2)
-    cosy_cosp = 1.0 - 2.0 * (qy * qy + qz * qz)
-    yaw = np.arctan2(siny_cosp, cosy_cosp)
-
-    return np.array([roll, pitch, yaw])
-
-
-def euler_to_quaternion(euler_angles: np.ndarray) -> np.ndarray:
-    """
-    Convert Euler angles (roll, pitch, yaw) to a quaternion.
-
-    :param euler_angles: The Euler angles [roll, pitch, yaw], shape (3,).
-    :type euler_angles: np.ndarray
-    :return: The quaternion [qw, qx, qy, qz], shape (4,).
-    :rtype: np.ndarray
-    """
-    roll, pitch, yaw = euler_angles
-
-    # Compute half angles
-    cy = np.cos(yaw * 0.5)
-    sy = np.sin(yaw * 0.5)
-    cp = np.cos(pitch * 0.5)
-    sp = np.sin(pitch * 0.5)
-    cr = np.cos(roll * 0.5)
-    sr = np.sin(roll * 0.5)
-
-    # Compute quaternion components
-    qw = cr * cp * cy + sr * sp * sy
-    qx = sr * cp * cy - cr * sp * sy
-    qy = cr * sp * cy + sr * cp * sy
-    qz = cr * cp * sy - sr * sp * cy
-
-    return np.array([qw, qx, qy, qz])
-
-
-def compute_tilt_and_euler_angles(g: np.ndarray,
-                                  g_ref: np.ndarray = np.array([0., 0., 9.81])) -> tuple:
-    """
-    Compute the total tilt angle (from vertical) and the roll & pitch Euler angles
-    from a measured gravity vector `g` (numpy array of shape (3,)).
-
-    Parameters
-    ----------
-    g : np.ndarray
-        Measured gravity vector [gx, gy, gz] in m/s².
-    g_ref : np.ndarray, optional
-        Reference gravity vector (default [0, 0, 9.81]).
-
-    Returns
-    -------
-    tilt : float
-        Total tilt angle from vertical (radians).
-    roll : float
-        Rotation about the x-axis (radians).
-    pitch : float
-        Rotation about the y-axis (radians).
-    """
-    # Normalize vectors
-    g_norm = np.linalg.norm(g)
-    g_unit = g / g_norm
-    g_ref_unit = g_ref / np.linalg.norm(g_ref)
-
-    # Total tilt via dot product
-    # Clip the dot product for numerical stability
-    cos_theta = np.clip(np.dot(g_unit, g_ref_unit), -1.0, 1.0)
-    tilt = np.arccos(cos_theta)
-
-    # Euler angles (roll, pitch)
-    gx, gy, gz = g
-    roll = np.arctan2(gy, gz)
-    pitch = np.arctan2(-gx, np.sqrt(gy**2 + gz**2))
-
-    return tilt, roll, pitch
 
 
 class EKFNode(Node):
     def __init__(self):
         super().__init__('ekf_node')
 
-        accelerometer_noise_density = 0.0025624546199207194
-        accelerometer_random_walk = 8.055323021637122e-05
-        gyroscope_noise_density = 0.00011090831806067944
-        gyroscope_random_walk = 2.5135360798417067e-06
+        # accelerometer_noise_density = 0.0025624546199207194
+        # accelerometer_random_walk = 8.055323021637122e-05
+        # gyroscope_noise_density = 0.00011090831806067944
+        # gyroscope_random_walk = 2.5135360798417067e-06
         # accelerometer_noise_density = 0.0
         # accelerometer_random_walk = 0.0
         # gyroscope_noise_density = 0.0
         # gyroscope_random_walk = 0.0
-        # accelerometer_noise_density = 1e-1
-        # accelerometer_random_walk = 1e-2
-        # gyroscope_noise_density = 1e-2
-        # gyroscope_random_walk = 1e-3
+        accelerometer_noise_density = 1e-1
+        accelerometer_random_walk = 1e-2
+        gyroscope_noise_density = 1e-2
+        gyroscope_random_walk = 1e-3
 
         # Example parameters
         self.initial_state = np.array([
@@ -192,9 +74,9 @@ class EKFNode(Node):
             0.0, 0.0, 0.0,
             0.0, 0.0, 0.0
         ])
-        self.initial_covariance = np.ones((15, 15)) * 0.0
-        # self.initial_covariance[6:9, 6:9] = np.identity(
-        #     3) * 1e-6  # Orientation covariance
+        self.initial_covariance = np.zeros((15, 15))
+        self.initial_covariance[9:15, 9:15] = np.identity(
+            6) * 1  # bias covariance
 
         print("Initial state:", self.initial_state)
         print("Initial covariance diagonal:", self.initial_covariance)
@@ -218,12 +100,14 @@ class EKFNode(Node):
             self.imu_callback,
             qos_profile
         )
-        # self.pose_subscriber = self.create_subscription(
-        #     PoseStamped,
-        #     '/drone0/self_localization/pose',
-        #     self.pose_callback,
-        #     qos_profile
-        # )
+        self.pose_subscriber = self.create_subscription(
+            PoseStamped,
+            '/drone0/self_localization/pose',
+            self.pose_callback,
+            qos_profile
+        )
+        self.tf_static_broadcaster = StaticTransformBroadcaster(self)
+        self.tf_broadcaster = TransformBroadcaster(self)
         self.odom_publisher = self.create_publisher(
             Odometry,
             '/ekf_odom',
@@ -235,7 +119,29 @@ class EKFNode(Node):
         self.imu_counter = 0
         self.pose_counter = 0
 
+        self.angular_velocity = np.array([0.0, 0.0, 0.0])
+
         self.imu_start = np.array([0.0, 0.0, 0.0])
+        self.imu_gravity_calibration_number = 200 * 5  # 5 seconds at 200Hz
+        self.update_rate = 1  # Hz
+
+        # Timer 200Hz
+        self.timer = self.create_timer(1.0 / 200.0, self.timer_callback)
+
+        # Publish static tfs
+        static_transform = TransformStamped()
+        static_transform.header.stamp = self.get_clock().now().to_msg()
+        static_transform.header.frame_id = 'earth'
+        static_transform.child_frame_id = 'ekf_map'
+        static_transform.transform.translation.x = 0.0
+        static_transform.transform.translation.y = 0.0
+        static_transform.transform.translation.z = 0.0
+        static_transform.transform.rotation.w = 1.0
+        static_transform.transform.rotation.x = 0.0
+        static_transform.transform.rotation.y = 0.0
+        static_transform.transform.rotation.z = 0.0
+        self.tf_static_broadcaster.sendTransform(static_transform)
+        print("Static transform published: earth -> ekf_map")
 
     def imu_callback(self, msg):
         # print("IMU callback")
@@ -262,58 +168,18 @@ class EKFNode(Node):
         dt = self.current_time - self.last_time
         if self.imu_counter == 0:
             dt = 1/200
-        # print("dt:", dt)
 
-        if self.imu_counter > 200 * 5:
+        if self.imu_counter > self.imu_gravity_calibration_number:
             self.ekf_wrapper.predict(imu_measurement, dt)
-            self.imu_counter += 1
-
-            # Publish the odometry message
-            state = self.ekf_wrapper.get_state().T[0]
-            covariance = self.ekf_wrapper.get_state_covariance()
-            # print("State after prediction:\n", state)
-            # print("State covariance after prediction:", covariance)
-            odom_msg = Odometry()
-            odom_msg.header.stamp = msg.header.stamp
-            odom_msg.header.frame_id = 'earth'
-            odom_msg.child_frame_id = 'base_link'
-            odom_msg.pose.pose.position.x = float(state[0])
-            odom_msg.pose.pose.position.y = float(state[1])
-            odom_msg.pose.pose.position.z = float(state[2])
-            # print("Position:", odom_msg.pose.pose.position)
-            quaternion = euler_to_quaternion(
-                np.array([state[6], state[7], state[8]]))
-            odom_msg.pose.pose.orientation.w = float(quaternion[0])
-            odom_msg.pose.pose.orientation.x = float(quaternion[1])
-            odom_msg.pose.pose.orientation.y = float(quaternion[2])
-            odom_msg.pose.pose.orientation.z = float(quaternion[3])
-            diag_covariance = np.double(np.diag(
-                np.append(np.diag(covariance)[0:3], np.diag(covariance)[6:9]))).flatten().tolist()
-            # print("Covariance diagonal:", diag_covariance)
-            odom_msg.pose.covariance = diag_covariance
-            odom_msg.twist.twist.linear.x = float(state[3])
-            odom_msg.twist.twist.linear.y = float(state[4])
-            odom_msg.twist.twist.linear.z = float(state[5])
-            odom_msg.twist.twist.angular.x = msg.angular_velocity.x
-            odom_msg.twist.twist.angular.y = msg.angular_velocity.y
-            odom_msg.twist.twist.angular.z = msg.angular_velocity.z
-            odom_msg.twist.covariance = np.double(np.eye(6)).flatten().tolist()
-            # print("Odometry covariance:")
-            # print(odom_msg.twist.covariance)
-            self.odom_publisher.publish(odom_msg)
-
-            # if self.imu_counter == 1010:
-            #     exit()
-        elif self.imu_counter == 200 * 5:
+            self.angular_velocity = np.array([
+                imu_angular_x,
+                imu_angular_y,
+                imu_angular_z,
+            ])
+        elif self.imu_counter == self.imu_gravity_calibration_number:
             self.imu_start /= self.imu_counter
             print("IMU start:", self.imu_start)
             self.ekf_wrapper.gravity = self.imu_start
-            # _, roll, pitch = compute_tilt_and_euler_angles(self.imu_start)
-            # self.ekf_wrapper.state[6] = roll
-            # self.ekf_wrapper.state[7] = pitch
-            # print("Initial roll:", roll)
-            # print("Initial pitch:", pitch)
-            self.imu_counter += 1
         else:
             # print("IMU counter:", self.imu_counter)
             self.imu_start += np.array([
@@ -321,31 +187,132 @@ class EKFNode(Node):
                 imu_linear_y,
                 imu_linear_z,
             ])
-            self.imu_counter += 1
+        self.imu_counter += 1
 
     def pose_callback(self, msg):
-        if self.pose_counter % (100/5) == 0 and self.imu_counter > 1000:
-            print(f"Update {self.imu_counter}")
-            # Process initial pose data
-            pose_x = msg.pose.position.x
-            pose_y = msg.pose.position.y
-            pose_z = msg.pose.position.z
-            orientation_x = msg.pose.orientation.x
-            orientation_y = msg.pose.orientation.y
-            orientation_z = msg.pose.orientation.z
-            orientation_w = msg.pose.orientation.w
-            orientation = quaternion_to_euler(
-                np.array([orientation_w, orientation_x, orientation_y, orientation_z]))
-            print("Pose orientation (roll, pitch, yaw):", orientation)
+        # Wait for gravity calibration to finish
+        if self.imu_counter > self.imu_gravity_calibration_number:
+            # Pose (ground truth) is 200Hz, IMU is 200Hz
+            if self.pose_counter % (200 / self.update_rate) == 0:
+                # print(f"Update {self.imu_counter}")
+                # Process initial pose data
+                pose_x = msg.pose.position.x
+                pose_y = msg.pose.position.y
+                pose_z = msg.pose.position.z
+                orientation_x = msg.pose.orientation.x
+                orientation_y = msg.pose.orientation.y
+                orientation_z = msg.pose.orientation.z
+                orientation_w = msg.pose.orientation.w
+                orientation = quaternion_to_euler(
+                    np.array([orientation_w, orientation_x, orientation_y, orientation_z]))
+                # print("Pose orientation (roll, pitch, yaw):", orientation)
 
-            pose_measurement = np.array([
-                pose_x, pose_y, pose_z,
-                orientation[0], orientation[1], orientation[2],
-            ])
+                pose_measurement = np.array([
+                    pose_x, pose_y, pose_z,
+                    orientation[0], orientation[1], orientation[2],
+                ])
 
-            self.ekf_wrapper.update_pose(pose_measurement, np.ones(6) * 1e-3)
-            # exit()
-        self.pose_counter += 1
+                self.ekf_wrapper.update_pose(
+                    pose_measurement, np.ones(6) * 1e-4)
+                state = self.ekf_wrapper.get_state().T[0]
+                print("Biases---------------------------------------")
+                print(state[9:12])
+                print(state[12:15])
+                covariance = self.ekf_wrapper.get_state_covariance()
+                print("Covariance diagonal--------------------------")
+                print(np.diag(covariance)[9:12])
+                print(np.diag(covariance)[12:15])
+                # exit()
+            self.pose_counter += 1
+
+    def timer_callback(self):
+        stamp = self.get_clock().now().to_msg()
+        if self.imu_counter > self.imu_gravity_calibration_number:
+            # Get the current state and covariance from the EKF wrapper
+            state = self.ekf_wrapper.get_state().T[0]
+            covariance = self.ekf_wrapper.get_state_covariance()
+            print("Covariance diagonal--------------------------")
+            print(np.diag(covariance)[9:12])
+            print(np.diag(covariance)[12:15])
+            state_position = state[0:3]
+            state_rpy = (state[6], state[7], state[8])
+
+            # State is map-base, get transform
+            T_map_base = pose_to_transform(state_position, state_rpy)
+
+            # Get the map-odom transformation
+            T_map_odom = self.ekf_wrapper.get_map_to_odom()
+            pose_map_odom = transform_to_pose(T_map_odom)
+
+            # Compute the odom-base transformation
+            T_odom_base = np.linalg.inv(T_map_odom) @ T_map_base
+            pose_odom_base = transform_to_pose(T_odom_base)
+
+            # Publish tfs
+            # ekf_map -> ekf_odom
+            transform_ekf_map_odom = TransformStamped()
+            transform_ekf_map_odom.header.stamp = stamp
+            transform_ekf_map_odom.header.frame_id = 'ekf_map'
+            transform_ekf_map_odom.child_frame_id = 'ekf_odom'
+            transform_ekf_map_odom.transform.translation.x = float(
+                pose_map_odom[0])
+            transform_ekf_map_odom.transform.translation.y = float(
+                pose_map_odom[1])
+            transform_ekf_map_odom.transform.translation.z = float(
+                pose_map_odom[2])
+            transform_ekf_map_odom.transform.rotation.w = float(
+                pose_map_odom[3])
+            transform_ekf_map_odom.transform.rotation.x = float(
+                pose_map_odom[4])
+            transform_ekf_map_odom.transform.rotation.y = float(
+                pose_map_odom[5])
+            transform_ekf_map_odom.transform.rotation.z = float(
+                pose_map_odom[6])
+            self.tf_broadcaster.sendTransform(transform_ekf_map_odom)
+            # ekf_odom -> ekf_base_link
+            transform_ekf_odom_base = TransformStamped()
+            transform_ekf_odom_base.header.stamp = stamp
+            transform_ekf_odom_base.header.frame_id = 'ekf_odom'
+            transform_ekf_odom_base.child_frame_id = 'ekf_base_link'
+            transform_ekf_odom_base.transform.translation.x = float(
+                pose_odom_base[0])
+            transform_ekf_odom_base.transform.translation.y = float(
+                pose_odom_base[1])
+            transform_ekf_odom_base.transform.translation.z = float(
+                pose_odom_base[2])
+            transform_ekf_odom_base.transform.rotation.w = float(
+                pose_odom_base[3])
+            transform_ekf_odom_base.transform.rotation.x = float(
+                pose_odom_base[4])
+            transform_ekf_odom_base.transform.rotation.y = float(
+                pose_odom_base[5])
+            transform_ekf_odom_base.transform.rotation.z = float(
+                pose_odom_base[6])
+            self.tf_broadcaster.sendTransform(transform_ekf_odom_base)
+
+            # Publish the odometry message
+            odom_msg = Odometry()
+            odom_msg.header.stamp = stamp
+            odom_msg.header.frame_id = 'ekf_odom'
+            odom_msg.child_frame_id = 'ekf_base_link'
+            odom_msg.pose.pose.position.x = float(pose_odom_base[0])
+            odom_msg.pose.pose.position.y = float(pose_odom_base[1])
+            odom_msg.pose.pose.position.z = float(pose_odom_base[2])
+            odom_msg.pose.pose.orientation.w = float(pose_odom_base[3])
+            odom_msg.pose.pose.orientation.x = float(pose_odom_base[4])
+            odom_msg.pose.pose.orientation.y = float(pose_odom_base[5])
+            odom_msg.pose.pose.orientation.z = float(pose_odom_base[6])
+            diag_covariance = np.double(np.diag(
+                np.append(np.diag(covariance)[0:3], np.diag(covariance)[6:9]))).flatten().tolist()
+            odom_msg.pose.covariance = diag_covariance
+            odom_msg.twist.twist.linear.x = float(state[3])
+            odom_msg.twist.twist.linear.y = float(state[4])
+            odom_msg.twist.twist.linear.z = float(state[5])
+            odom_msg.twist.twist.angular.x = self.angular_velocity[0]
+            odom_msg.twist.twist.angular.y = self.angular_velocity[1]
+            odom_msg.twist.twist.angular.z = self.angular_velocity[2]
+            odom_msg.twist.covariance = np.double(np.eye(6)).flatten().tolist()
+            self.odom_publisher.publish(odom_msg)
 
 
 def main(args=None):
