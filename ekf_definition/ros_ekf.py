@@ -39,13 +39,13 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
 from sensor_msgs.msg import Imu
-from geometry_msgs.msg import PoseStamped, TransformStamped
+from geometry_msgs.msg import PoseStamped, TransformStamped, TwistStamped
 from nav_msgs.msg import Odometry
 
 from ekf_wrapper import EKFWrapper, pose_to_transform
 import numpy as np
 from tf2_ros import StaticTransformBroadcaster, TransformBroadcaster
-from as2_ekf.transform_utils import *
+from ekf_definition.transform_utils import *
 # import tf_transformations as tf
 
 
@@ -61,6 +61,13 @@ class EKFNode(Node):
         # accelerometer_random_walk = 0.0
         # gyroscope_noise_density = 0.0
         # gyroscope_random_walk = 0.0
+        self.set_parameters([
+            rclpy.parameter.Parameter(
+                'use_sim_time',
+                rclpy.Parameter.Type.BOOL,
+                True),
+            # False),  # Set to True if using simulation time
+        ])
         accelerometer_noise_density = 1e-1
         accelerometer_random_walk = 1e-2
         gyroscope_noise_density = 1e-2
@@ -102,7 +109,7 @@ class EKFNode(Node):
         )
         self.pose_subscriber = self.create_subscription(
             PoseStamped,
-            '/drone0/self_localization/pose',
+            '/drone0/ground_truth/pose',
             self.pose_callback,
             qos_profile
         )
@@ -110,8 +117,18 @@ class EKFNode(Node):
         self.tf_broadcaster = TransformBroadcaster(self)
         self.odom_publisher = self.create_publisher(
             Odometry,
-            '/ekf_odom',
+            '/drone0/odom',
             10
+        )
+        self.pose_publisher = self.create_publisher(
+            PoseStamped,
+            '/drone0/self_localization/pose',
+            qos_profile
+        )
+        self.twist_publisher = self.create_publisher(
+            TwistStamped,
+            '/drone0/self_localization/twist',
+            qos_profile
         )
 
         self.last_time = 0.0
@@ -122,8 +139,11 @@ class EKFNode(Node):
         self.angular_velocity = np.array([0.0, 0.0, 0.0])
 
         self.imu_start = np.array([0.0, 0.0, 0.0])
-        self.imu_gravity_calibration_number = 200 * 5  # 5 seconds at 200Hz
-        self.update_rate = 1  # Hz
+        self.imu_gravity_calibration_number = 200 * 1  # 5 seconds at 200Hz
+        self.update_rate = 20  # Hz
+
+        # self.pose_earth_map = np.array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0])
+        self.pose_earth_map = np.array([0.0, 0.0, 0.25, 1.0, 0.0, 0.0, 0.0])
 
         # Timer 200Hz
         self.timer = self.create_timer(1.0 / 200.0, self.timer_callback)
@@ -132,19 +152,20 @@ class EKFNode(Node):
         static_transform = TransformStamped()
         static_transform.header.stamp = self.get_clock().now().to_msg()
         static_transform.header.frame_id = 'earth'
-        static_transform.child_frame_id = 'ekf_map'
-        static_transform.transform.translation.x = 0.0
-        static_transform.transform.translation.y = 0.0
-        static_transform.transform.translation.z = 0.0
-        static_transform.transform.rotation.w = 1.0
-        static_transform.transform.rotation.x = 0.0
-        static_transform.transform.rotation.y = 0.0
-        static_transform.transform.rotation.z = 0.0
+        static_transform.child_frame_id = 'drone0/map'
+        static_transform.transform.translation.x = self.pose_earth_map[0]
+        static_transform.transform.translation.y = self.pose_earth_map[1]
+        static_transform.transform.translation.z = self.pose_earth_map[2]
+        static_transform.transform.rotation.w = self.pose_earth_map[3]
+        static_transform.transform.rotation.x = self.pose_earth_map[4]
+        static_transform.transform.rotation.y = self.pose_earth_map[5]
+        static_transform.transform.rotation.z = self.pose_earth_map[6]
         self.tf_static_broadcaster.sendTransform(static_transform)
         print("Static transform published: earth -> ekf_map")
 
     def imu_callback(self, msg):
         # print("IMU callback")
+        # print("IMU counter:", self.imu_counter)
         # Process IMU data
 
         imu_linear_x = msg.linear_acceleration.x
@@ -213,27 +234,34 @@ class EKFNode(Node):
                 ])
 
                 self.ekf_wrapper.update_pose(
-                    pose_measurement, np.ones(6) * 1e-4)
-                state = self.ekf_wrapper.get_state().T[0]
-                print("Biases---------------------------------------")
-                print(state[9:12])
-                print(state[12:15])
-                covariance = self.ekf_wrapper.get_state_covariance()
-                print("Covariance diagonal--------------------------")
-                print(np.diag(covariance)[9:12])
-                print(np.diag(covariance)[12:15])
+                    pose_measurement, np.ones(6) * 1e-9)
+                # state = self.ekf_wrapper.get_state().T[0]
+                # print("State---------------------------------------")
+                # print(state[0:3])
+                # print(state[3:6])
+                # print(state[6:9])
+                # print(state[9:12])
+                # print(state[12:15])
+                # covariance = self.ekf_wrapper.get_state_covariance()
+                # print("Covariance diagonal--------------------------")
+                # print(np.diag(covariance)[0:3])
+                # print(np.diag(covariance)[3:6])
+                # print(np.diag(covariance)[6:9])
+                # print(np.diag(covariance)[9:12])
+                # print(np.diag(covariance)[12:15])
                 # exit()
             self.pose_counter += 1
 
     def timer_callback(self):
+        # print("Timer callback")
         stamp = self.get_clock().now().to_msg()
         if self.imu_counter > self.imu_gravity_calibration_number:
             # Get the current state and covariance from the EKF wrapper
             state = self.ekf_wrapper.get_state().T[0]
             covariance = self.ekf_wrapper.get_state_covariance()
-            print("Covariance diagonal--------------------------")
-            print(np.diag(covariance)[9:12])
-            print(np.diag(covariance)[12:15])
+            # print("Covariance diagonal--------------------------")
+            # print(np.diag(covariance)[9:12])
+            # print(np.diag(covariance)[12:15])
             state_position = state[0:3]
             state_rpy = (state[6], state[7], state[8])
 
@@ -248,12 +276,17 @@ class EKFNode(Node):
             T_odom_base = np.linalg.inv(T_map_odom) @ T_map_base
             pose_odom_base = transform_to_pose(T_odom_base)
 
+            # Compute earth-base transformation
+            T_earth_base = np.linalg.inv(pose_to_transform(
+                self.pose_earth_map[0:3], np.zeros(3))) @ T_map_base
+            pose_earth_base = transform_to_pose(T_earth_base)
+
             # Publish tfs
             # ekf_map -> ekf_odom
             transform_ekf_map_odom = TransformStamped()
             transform_ekf_map_odom.header.stamp = stamp
-            transform_ekf_map_odom.header.frame_id = 'ekf_map'
-            transform_ekf_map_odom.child_frame_id = 'ekf_odom'
+            transform_ekf_map_odom.header.frame_id = 'drone0/map'
+            transform_ekf_map_odom.child_frame_id = 'drone0/odom'
             transform_ekf_map_odom.transform.translation.x = float(
                 pose_map_odom[0])
             transform_ekf_map_odom.transform.translation.y = float(
@@ -272,8 +305,8 @@ class EKFNode(Node):
             # ekf_odom -> ekf_base_link
             transform_ekf_odom_base = TransformStamped()
             transform_ekf_odom_base.header.stamp = stamp
-            transform_ekf_odom_base.header.frame_id = 'ekf_odom'
-            transform_ekf_odom_base.child_frame_id = 'ekf_base_link'
+            transform_ekf_odom_base.header.frame_id = 'drone0/odom'
+            transform_ekf_odom_base.child_frame_id = 'drone0'
             transform_ekf_odom_base.transform.translation.x = float(
                 pose_odom_base[0])
             transform_ekf_odom_base.transform.translation.y = float(
@@ -293,8 +326,8 @@ class EKFNode(Node):
             # Publish the odometry message
             odom_msg = Odometry()
             odom_msg.header.stamp = stamp
-            odom_msg.header.frame_id = 'ekf_odom'
-            odom_msg.child_frame_id = 'ekf_base_link'
+            odom_msg.header.frame_id = 'drone0/odom'
+            odom_msg.child_frame_id = 'drone0/base_link'
             odom_msg.pose.pose.position.x = float(pose_odom_base[0])
             odom_msg.pose.pose.position.y = float(pose_odom_base[1])
             odom_msg.pose.pose.position.z = float(pose_odom_base[2])
@@ -313,6 +346,31 @@ class EKFNode(Node):
             odom_msg.twist.twist.angular.z = self.angular_velocity[2]
             odom_msg.twist.covariance = np.double(np.eye(6)).flatten().tolist()
             self.odom_publisher.publish(odom_msg)
+
+            # Publish the pose message
+            pose_msg = PoseStamped()
+            pose_msg.header.stamp = stamp
+            pose_msg.header.frame_id = 'earth'
+            pose_msg.pose.position.x = float(pose_earth_base[0])
+            pose_msg.pose.position.y = float(pose_earth_base[1])
+            pose_msg.pose.position.z = float(pose_earth_base[2])
+            pose_msg.pose.orientation.w = float(pose_earth_base[3])
+            pose_msg.pose.orientation.x = float(pose_earth_base[4])
+            pose_msg.pose.orientation.y = float(pose_earth_base[5])
+            pose_msg.pose.orientation.z = float(pose_earth_base[6])
+            self.pose_publisher.publish(pose_msg)
+
+            # Publish the twist message
+            twist_msg = TwistStamped()
+            twist_msg.header.stamp = stamp
+            twist_msg.header.frame_id = 'earth'
+            twist_msg.twist.linear.x = float(state[3])
+            twist_msg.twist.linear.y = float(state[4])
+            twist_msg.twist.linear.z = float(state[5])
+            twist_msg.twist.angular.x = self.angular_velocity[0]
+            twist_msg.twist.angular.y = self.angular_velocity[1]
+            twist_msg.twist.angular.z = self.angular_velocity[2]
+            self.twist_publisher.publish(twist_msg)
 
 
 def main(args=None):

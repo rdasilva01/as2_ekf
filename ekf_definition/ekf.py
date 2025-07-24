@@ -36,7 +36,7 @@ __license__ = 'BSD-3-Clause'
 
 
 import casadi as ca
-from .casadi_utils import Utils
+from ekf_definition.casadi_utils import Utils
 
 
 class EKF():

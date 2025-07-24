@@ -34,7 +34,7 @@ __authors__ = 'Rodrigo da Silva Gómez'
 __copyright__ = 'Copyright (c) 2025 Universidad Politécnica de Madrid'
 __license__ = 'BSD-3-Clause'
 
-from as2_ekf.ekf import EKF
+from ekf_definition.ekf import EKF
 import casadi as ca
 import os
 import shutil
@@ -60,14 +60,14 @@ def main():
     }
 
     # Generate C code
-    c = ca.CodeGenerator('as2_ekf', opts)
+    c = ca.CodeGenerator('ekf_c_code', opts)
     c.add(predict_function)
     c.add(update_pose_function)
     c.add(update_pose_velocity_function)
     c.generate()
 
     # Check if previous files exist, ask for confirmation to overwrite
-    if os.path.exists('../src/as2_ekf.cpp'):
+    if os.path.exists('../src/ekf_c_code.cpp'):
         confirm = input(
             'Previous C code found. Do you want to overwrite it? (y/N): ')
         if confirm.lower() != 'y':
@@ -76,24 +76,24 @@ def main():
         else:
             print('Overwriting previous C code...')
             try:
-                os.remove('../src/as2_ekf.cpp')
-                os.remove('../include/as2_ekf/as2_ekf.h')
+                os.remove('../src/ekf_c_code.cpp')
+                os.remove('../include/ekf/ekf_c_code.h')
             except OSError as e:
                 print(f'Error removing old files: {e}')
                 return
 
     # Move the generated files to the appropriate directories
     try:
-        shutil.copy('as2_ekf.cpp', '../src/as2_ekf.cpp')
-        shutil.copy('as2_ekf.h', '../include/as2_ekf/as2_ekf.h')
+        shutil.copy('ekf_c_code.cpp', '../src/ekf_c_code.cpp')
+        shutil.copy('ekf_c_code.h', '../include/ekf/ekf_c_code.h')
         print('C code generated successfully.')
     except OSError as e:
         print(f'Error copying generated files: {e}')
 
     # Clean up the generated files
     try:
-        os.remove('as2_ekf.cpp')
-        os.remove('as2_ekf.h')
+        os.remove('ekf_c_code.cpp')
+        os.remove('ekf_c_code.h')
     except OSError as e:
         print(f'Error removing temporary files: {e}')
 

@@ -36,9 +36,9 @@ __license__ = 'BSD-3-Clause'
 
 
 import numpy as np
-from as2_ekf.ekf import EKF
+from ekf_definition.ekf import EKF
 
-from as2_ekf.transform_utils import *
+from ekf_definition.transform_utils import *
 
 
 class EKFWrapper:
