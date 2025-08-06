@@ -1,1 +1,0 @@
-/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/ekf_simple_example.dir/simple_example.cpp.o -o ekf_simple_example  -Wl,-rpath,/root/aerostack2_ws/src/aerostack2/thirdparties/ekf/build ../libekf.so 

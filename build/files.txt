@@ -1,1 +1,0 @@
-simple_example.a1::/root/aerostack2_ws/src/aerostack2/thirdparties/ekf/examples/simple_example.cpp

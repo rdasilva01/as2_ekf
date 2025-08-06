@@ -1,6 +1,0 @@
-/root/aerostack2_ws/src/aerostack2/thirdparties/ekf/build/CMakeFiles/ekf.dir
-/root/aerostack2_ws/src/aerostack2/thirdparties/ekf/build/CMakeFiles/edit_cache.dir
-/root/aerostack2_ws/src/aerostack2/thirdparties/ekf/build/CMakeFiles/rebuild_cache.dir
-/root/aerostack2_ws/src/aerostack2/thirdparties/ekf/build/examples/CMakeFiles/ekf_simple_example.dir
-/root/aerostack2_ws/src/aerostack2/thirdparties/ekf/build/examples/CMakeFiles/edit_cache.dir
-/root/aerostack2_ws/src/aerostack2/thirdparties/ekf/build/examples/CMakeFiles/rebuild_cache.dir
