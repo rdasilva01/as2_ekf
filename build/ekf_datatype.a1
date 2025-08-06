@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<analyzerinfo checksum="351694580">
+  <FileInfo check="CheckUnusedFunctions">
+    <functioncall functionName="Covariance"/>
+    <functioncall functionName="Gravity"/>
+    <functioncall functionName="Input"/>
+    <functioncall functionName="PoseMeasurement"/>
+    <functioncall functionName="PoseMeasurementCovariance"/>
+    <functioncall functionName="PoseVelocityMeasurement"/>
+    <functioncall functionName="PoseVelocityMeasurementCovariance"/>
+    <functioncall functionName="State"/>
+    <functioncall functionName="double"/>
+    <functioncall functionName="fill"/>
+    <functioncall functionName="for"/>
+    <functioncall functionName="i"/>
+    <functioncall functionName="if"/>
+    <functioncall functionName="set"/>
+    <functioncall functionName="size"/>
+    <functioncall functionName="str"/>
+    <functioncall functionName="values"/>
+  </FileInfo>
+</analyzerinfo>
