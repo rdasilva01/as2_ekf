@@ -94,8 +94,10 @@ int main(int argc, char ** argv)
 
   // Create an IMU input measurement
   ekf::Input imu_input;
-  std::array<double, ekf::Input::size> imu_values = {0.0, 0.0, 9.81, 0.0, 0.0, 0.0};
+  std::array<double, ekf::Input::size> imu_values = {0.0, 0.0, 9.81, 0.0, 0.0, 1.0};
   imu_input.set(imu_values);
+
+  ekf::State prev_state = ekf_wrapper.get_state();
 
   // Predict the next state with a time step of 1 seconds
   double seconds = 1.0;
@@ -117,6 +119,18 @@ int main(int argc, char ** argv)
   std::cout << "Updated Covariance: \n" << ekf_wrapper.get_state_covariance().to_string() <<
     std::endl;
 
+
+  // Test compute_map_to_odom
+  ekf::State new_state = ekf_wrapper.get_state();
+  Eigen::Matrix4d prev_map_to_odom = Eigen::Matrix4d::Identity();
+  prev_map_to_odom.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+  prev_map_to_odom(0, 3) = 0.0;
+  prev_map_to_odom(1, 3) = 0.0;
+  prev_map_to_odom(2, 3) = 0.0;
+  Eigen::Matrix4d new_map_to_odom = ekf::EKFWrapper::compute_map_to_odom(
+    prev_state, new_state,
+    prev_map_to_odom);
+  std::cout << "Map to Odom Transformation: \n" << new_map_to_odom << std::endl;
 
   return 0;
 }

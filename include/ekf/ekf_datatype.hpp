@@ -72,6 +72,36 @@ struct State
   void set(const std::array<double, size> & values);
 
   /**
+   * @brief Get position (x, y, z)
+   * @return A 3D vector representing the position
+   */
+  std::array<double, 3> get_position() const;
+
+  /**
+   * @brief Get velocity (vx, vy, vz)
+   * @return A 3D vector representing the Velocity
+   */
+  std::array<double, 3> get_velocity() const;
+
+  /**
+   * @brief Get orientation (roll, pitch, yaw)
+   * @return A 3D vector representing the orientation in radians
+   */
+  std::array<double, 3> get_orientation() const;
+
+  /**
+   * @brief Get accelerometer bias (abx, aby, abz)
+   * @return A 3D vector representing the accelerometer bias
+   */
+  std::array<double, 3> get_accelerometer_bias() const;
+
+  /**
+   * @brief Get gyroscope bias (wbx, wby, wbz)
+   * @return A 3D vector representing the gyroscope bias
+   */
+  std::array<double, 3> get_gyroscope_bias() const;
+
+  /**
    * @brief The print operator for easy debugging
    * @return A string representation of the state
    */

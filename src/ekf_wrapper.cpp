@@ -35,11 +35,13 @@
 */
 
 #include "ekf/ekf_wrapper.hpp"
+#include "Eigen/src/Core/Matrix.h"
 #include "ekf_datatype.hpp"
 #include <algorithm>
 
 namespace ekf
 {
+
 
 EKFWrapper::EKFWrapper()
 {
@@ -51,15 +53,10 @@ EKFWrapper::EKFWrapper()
   gyroscope_noise_density_ = 0.0;
   accelerometer_random_walk_ = 0.0;
   gyroscope_random_walk_ = 0.0;
-  arg_[0] = ekf_data_.state.data.data();
-  arg_[2] = imu_noise_.data();
-  arg_[4] = ekf_data_.covariance.data.data();
-  arg_[6] = ekf_data_.gravity.data.data();
-  res_[0] = ekf_data_.state.data.data();
-  res_[1] = ekf_data_.covariance.data.data();
-  Gravity vector3;
-  res_[2] = vector3.data.data();
+  // Predict arguments and results for the C code interface
+  initialize_args_and_results();
 }
+
 
 EKFWrapper::EKFWrapper(
   State initial_state,
@@ -80,20 +77,41 @@ EKFWrapper::EKFWrapper(
   gyroscope_noise_density_ = gyroscope_noise_density;
   accelerometer_random_walk_ = accelerometer_random_walk;
   gyroscope_random_walk_ = gyroscope_random_walk;
+  // Initialize the arguments and results for the C code interface
+  initialize_args_and_results();
+}
+
+
+EKFWrapper::~EKFWrapper()
+{
+  // Destructor logic if needed
+}
+
+
+void EKFWrapper::initialize_args_and_results()
+{
+  // Initialize the arguments and results for the C code interface
   arg_[0] = ekf_data_.state.data.data();
   arg_[2] = imu_noise_.data();
   arg_[4] = ekf_data_.covariance.data.data();
   arg_[6] = ekf_data_.gravity.data.data();
   res_[0] = ekf_data_.state.data.data();
   res_[1] = ekf_data_.covariance.data.data();
-  Gravity vector3;
-  res_[2] = vector3.data.data();
+  res_[2] = acc_in_world.data.data();
+  // Update pose arguments and results for the C code interface
+  update_pose_arg_[0] = ekf_data_.state.data.data();
+  update_pose_arg_[1] = imu_noise_.data();
+  update_pose_arg_[3] = ekf_data_.covariance.data.data();
+  update_pose_res_[0] = ekf_data_.state.data.data();
+  update_pose_res_[1] = ekf_data_.covariance.data.data();
+  // Update pose velocity arguments and results for the C code interface
+  update_pose_velocity_arg_[0] = ekf_data_.state.data.data();
+  update_pose_velocity_arg_[1] = imu_noise_.data();
+  update_pose_velocity_arg_[3] = ekf_data_.covariance.data.data();
+  update_pose_velocity_res_[0] = ekf_data_.state.data.data();
+  update_pose_velocity_res_[1] = ekf_data_.covariance.data.data();
 }
 
-EKFWrapper::~EKFWrapper()
-{
-  // Destructor logic if needed
-}
 
 void EKFWrapper::reset(
   const State & initial_state,
@@ -103,6 +121,7 @@ void EKFWrapper::reset(
   ekf_data_.covariance = initial_covariance;
   ekf_data_.map_to_odom = Eigen::Matrix4d::Identity();
 }
+
 
 void EKFWrapper::set_noise_parameters(
   const Eigen::Vector<double, 6> & imu_noise,
@@ -118,7 +137,10 @@ void EKFWrapper::set_noise_parameters(
   gyroscope_random_walk_ = gyroscope_random_walk;
 
   arg_[2] = imu_noise_.data();
+  update_pose_arg_[1] = imu_noise_.data();
+  update_pose_velocity_arg_[1] = imu_noise_.data();
 }
+
 
 void EKFWrapper::set_gravity(const Gravity & gravity)
 {
@@ -126,30 +148,42 @@ void EKFWrapper::set_gravity(const Gravity & gravity)
   arg_[6] = ekf_data_.gravity.data.data();
 }
 
+
+void EKFWrapper::set_map_to_odom(const Eigen::Matrix4d & map_to_odom)
+{
+  ekf_data_.map_to_odom = map_to_odom;
+}
+
+
 State EKFWrapper::get_state()
 {
   return ekf_data_.state;
 }
+
 
 Covariance EKFWrapper::get_state_covariance()
 {
   return ekf_data_.covariance;
 }
 
+
 Eigen::Matrix4d EKFWrapper::get_map_to_odom()
 {
   return ekf_data_.map_to_odom;
 }
+
 
 Gravity EKFWrapper::get_gravity()
 {
   return ekf_data_.gravity;
 }
 
+
 Eigen::Vector<double, 6> EKFWrapper::get_imu_noise()
 {
   return imu_noise_;
 }
+
 
 Eigen::Vector<double, 4> EKFWrapper::get_noise_parameters()
 {
@@ -159,6 +193,7 @@ Eigen::Vector<double, 4> EKFWrapper::get_noise_parameters()
     accelerometer_random_walk_,
     gyroscope_random_walk_);
 }
+
 
 Covariance EKFWrapper::compute_process_noise_covariance(
   double dt)
@@ -207,9 +242,68 @@ Covariance EKFWrapper::compute_process_noise_covariance(
   return pnc;
 }
 
+
+Eigen::Matrix4d EKFWrapper::pose_to_transform(
+  const Eigen::Vector3d & position,
+  const Eigen::Vector3d & euler_rpy)
+{
+  double roll = euler_rpy[0];
+  double pitch = euler_rpy[1];
+  double yaw = euler_rpy[2];
+  double cr = cos(roll);
+  double sr = sin(roll);
+  double cp = cos(pitch);
+  double sp = sin(pitch);
+  double cy = cos(yaw);
+  double sy = sin(yaw);
+
+  Eigen::Matrix3d R_x;
+  R_x << 1, 0, 0,
+    0, cr, -sr,
+    0, sr, cr;
+  Eigen::Matrix3d R_y;
+  R_y << cp, 0, sp,
+    0, 1, 0,
+    -sp, 0, cp;
+  Eigen::Matrix3d R_z;
+  R_z << cy, -sy, 0,
+    sy, cy, 0,
+    0, 0, 1;
+  Eigen::Matrix3d R = R_z * R_y * R_x;
+  Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
+  transform.block<3, 3>(0, 0) = R;
+  transform(0, 3) = position[0];
+  transform(1, 3) = position[1];
+  transform(2, 3) = position[2];
+  return transform;
+}
+
+
+Eigen::Matrix4d EKFWrapper::compute_map_to_odom(
+  const State & state,
+  const State & new_state,
+  const Eigen::Matrix4d & prev_map_to_odom)
+{
+  Eigen::Vector3d p_prev = Eigen::Vector3d(state.get_position().data());
+  Eigen::Vector3d r_prev = Eigen::Vector3d(state.get_orientation().data());
+  Eigen::Vector3d p_new = Eigen::Vector3d(new_state.get_position().data());
+  Eigen::Vector3d r_new = Eigen::Vector3d(new_state.get_orientation().data());
+
+  Eigen::Matrix4d T_map_base_prev =
+    pose_to_transform(p_prev, r_prev);
+  Eigen::Matrix4d T_base_map_prev = T_map_base_prev.inverse();
+  Eigen::Matrix4d T_map_base_new =
+    pose_to_transform(p_new, r_new);
+  Eigen::Matrix4d delta = T_map_base_new * T_base_map_prev;
+
+  Eigen::Matrix4d T_map_odom_new = delta * prev_map_to_odom;
+  return T_map_odom_new;
+}
+
+
 void EKFWrapper::predict(
-  Input input,
-  double dt)
+  const Input & input,
+  const double & dt)
 {
   Covariance process_noise_covariance =
     compute_process_noise_covariance(dt);
@@ -218,29 +312,62 @@ void EKFWrapper::predict(
   arg_[3] = &dt;
   arg_[5] = process_noise_covariance.data.data();
 
-  // for (std::size_t i = 0; i < 7; ++i) {
-  //   const casadi_int * arg_size_arr = predict_function_sparsity_in(i);
-  //   int arg_size = arg_size_arr[0] * arg_size_arr[1];
-  //   for (int j = 0; j < arg_size; ++j) {
-  //     std::cout << "arg_[" << i << "][" << j << "] = " << arg_[i][j] << std::endl;
-  //   }
-  // }
-
-  // // Check for null pointers
-  // for (std::size_t i = 0; i < 7; ++i) {
-  //   if (arg_[i] == nullptr) {
-  //     std::cerr << "Error: arg_[" << i << "] is null." << std::endl;
-  //     return;
-  //   }
-  // }
-
   predict_function(
     arg_,
     res_,
-    0,
-    0,
+    nullptr,
+    nullptr,
+    0);
+}
+
+
+void EKFWrapper::update_pose(
+  const PoseMeasurement & z,
+  const PoseMeasurementCovariance & measurement_noise_covariance)
+{
+  update_pose_arg_[2] = z.data.data();
+  update_pose_arg_[4] = measurement_noise_covariance.data.data();
+
+  State prev_state = get_state();
+
+  update_pose_function(
+    update_pose_arg_,
+    update_pose_res_,
+    nullptr,
+    nullptr,
     0);
 
+  // Update the map to odom Transformation
+  set_map_to_odom(
+    compute_map_to_odom(
+      prev_state,
+      get_state(),
+      get_map_to_odom()));
+}
+
+
+void EKFWrapper::update_pose_velocity(
+  const PoseVelocityMeasurement & z,
+  const PoseVelocityMeasurementCovariance & measurement_noise_covariance)
+{
+  update_pose_velocity_arg_[2] = z.data.data();
+  update_pose_velocity_arg_[4] = measurement_noise_covariance.data.data();
+
+  State prev_state = get_state();
+
+  update_pose_velocity_function(
+    update_pose_velocity_arg_,
+    update_pose_velocity_res_,
+    nullptr,
+    nullptr,
+    0);
+
+  // Update the map to odom Transformation
+  set_map_to_odom(
+    compute_map_to_odom(
+      prev_state,
+      get_state(),
+      get_map_to_odom()));
 }
 
 

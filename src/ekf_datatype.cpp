@@ -39,20 +39,54 @@
 namespace ekf
 {
 
+
 State::State()
 {
   data.fill(0.0);
 }
+
 
 State::State(const std::array<double, size> & values)
 {
   set(values);
 }
 
+
+std::array<double, 3> State::get_position() const
+{
+  return {data[0], data[1], data[2]};
+}
+
+
+std::array<double, 3> State::get_velocity() const
+{
+  return {data[3], data[4], data[5]};
+}
+
+
+std::array<double, 3> State::get_orientation() const
+{
+  return {data[6], data[7], data[8]};
+}
+
+
+std::array<double, 3> State::get_accelerometer_bias() const
+{
+  return {data[9], data[10], data[11]};
+}
+
+
+std::array<double, 3> State::get_gyroscope_bias() const
+{
+  return {data[12], data[13], data[14]};
+}
+
+
 void State::set(const std::array<double, size> & values)
 {
   data = values;
 }
+
 
 std::string State::to_string() const
 {
@@ -72,20 +106,24 @@ std::string State::to_string() const
   return oss.str();
 }
 
+
 Covariance::Covariance()
 {
   data.fill(0.0);
 }
+
 
 Covariance::Covariance(const std::array<double, size> & values)
 {
   set(values);
 }
 
+
 void Covariance::set(const std::array<double, size> & values)
 {
   data = values;
 }
+
 
 std::string Covariance::to_string() const
 {
@@ -105,86 +143,103 @@ std::string Covariance::to_string() const
   return oss.str();
 }
 
+
 Gravity::Gravity()
 {
   data.fill(0.0);
   data[2] = 9.81; // Default gravity value in m/s^2
 }
 
+
 Gravity::Gravity(const std::array<double, size> & values)
 {
   set(values);
 }
+
 
 void Gravity::set(const std::array<double, size> & values)
 {
   data = values;
 }
 
+
 Input::Input()
 {
   data.fill(0.0);
 }
+
 
 Input::Input(const std::array<double, size> & values)
 {
   set(values);
 }
 
+
 void Input::set(const std::array<double, size> & values)
 {
   data = values;
 }
+
 
 PoseMeasurement::PoseMeasurement()
 {
   data.fill(0.0);
 }
 
+
 PoseMeasurement::PoseMeasurement(const std::array<double, size> & values)
 {
   set(values);
 }
+
 
 void PoseMeasurement::set(const std::array<double, size> & values)
 {
   data = values;
 }
 
+
 PoseMeasurementCovariance::PoseMeasurementCovariance()
 {
   data.fill(0.0);
 }
+
 
 PoseMeasurementCovariance::PoseMeasurementCovariance(const std::array<double, size> & values)
 {
   set(values);
 }
 
+
 void PoseMeasurementCovariance::set(const std::array<double, size> & values)
 {
   data = values;
 }
+
 
 PoseVelocityMeasurement::PoseVelocityMeasurement()
 {
   data.fill(0.0);
 }
 
+
 PoseVelocityMeasurement::PoseVelocityMeasurement(const std::array<double, size> & values)
 {
   set(values);
 }
+
 
 void PoseVelocityMeasurement::set(const std::array<double, size> & values)
 {
   data = values;
 }
 
+
 PoseVelocityMeasurementCovariance::PoseVelocityMeasurementCovariance()
 {
   data.fill(0.0);
 }
+
 
 PoseVelocityMeasurementCovariance::PoseVelocityMeasurementCovariance(
   const std::array<double,
@@ -193,9 +248,11 @@ PoseVelocityMeasurementCovariance::PoseVelocityMeasurementCovariance(
   set(values);
 }
 
+
 void PoseVelocityMeasurementCovariance::set(const std::array<double, size> & values)
 {
   data = values;
 }
+
 
 } // namespace ekf
