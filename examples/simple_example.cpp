@@ -119,18 +119,41 @@ int main(int argc, char ** argv)
   std::cout << "Updated Covariance: \n" << ekf_wrapper.get_state_covariance().to_string() <<
     std::endl;
 
+  // Test pose Update
+  ekf::PoseMeasurement pose_measurement;
+  std::array<double, ekf::PoseMeasurement::size> pose_values = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  pose_measurement.set(pose_values);
 
-  // Test compute_map_to_odom
-  ekf::State new_state = ekf_wrapper.get_state();
-  Eigen::Matrix4d prev_map_to_odom = Eigen::Matrix4d::Identity();
-  prev_map_to_odom.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
-  prev_map_to_odom(0, 3) = 0.0;
-  prev_map_to_odom(1, 3) = 0.0;
-  prev_map_to_odom(2, 3) = 0.0;
-  Eigen::Matrix4d new_map_to_odom = ekf::EKFWrapper::compute_map_to_odom(
-    prev_state, new_state,
-    prev_map_to_odom);
-  std::cout << "Map to Odom Transformation: \n" << new_map_to_odom << std::endl;
+  ekf::PoseMeasurementCovariance pose_measurement_covariance;
+  std::array<double, ekf::PoseMeasurementCovariance::size> pose_covariance_values;
+  pose_covariance_values = {3.3e-5, 3.3e-5, 3.3e-5, 1e-8, 1e-8, 1e-8};
+  pose_measurement_covariance.set(pose_covariance_values);
+  std::cout << "Pose Measurement: \n" << pose_measurement.to_string() << std::endl;
+  std::cout << "Pose Measurement Covariance: \n" << pose_measurement_covariance.to_string() <<
+    std::endl;
+
+  ekf_wrapper.update_pose(pose_measurement, pose_measurement_covariance);
+
+  std::cout << "State after pose update: \n" << ekf_wrapper.get_state().to_string() << std::endl;
+  std::cout << "Covariance after pose update: \n" <<
+    ekf_wrapper.get_state_covariance().to_string() <<
+    std::endl;
+
+  // Print the map to odom transformation
+  Eigen::Matrix4d map_to_odom = ekf_wrapper.get_map_to_odom();
+  std::cout << "Map to Odom Transformation: \n" << map_to_odom << std::endl;
+
+  // // Test compute_map_to_odom
+  // ekf::State new_state = ekf_wrapper.get_state();
+  // Eigen::Matrix4d prev_map_to_odom = Eigen::Matrix4d::Identity();
+  // prev_map_to_odom.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+  // prev_map_to_odom(0, 3) = 0.0;
+  // prev_map_to_odom(1, 3) = 0.0;
+  // prev_map_to_odom(2, 3) = 0.0;
+  // Eigen::Matrix4d new_map_to_odom = ekf::EKFWrapper::compute_map_to_odom(
+  //   prev_state, new_state,
+  //   prev_map_to_odom);
+  // std::cout << "Map to Odom Transformation: \n" << new_map_to_odom << std::endl;
 
   return 0;
 }

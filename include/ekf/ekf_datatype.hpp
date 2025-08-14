@@ -194,6 +194,12 @@ struct Input
    * @param values Values to set the input measurements
    */
   void set(const std::array<double, size> & values);
+
+  /**
+   * @brief The print operator for easy debugging
+   * @return A string representation of the input measurements
+   */
+  std::string to_string() const;
 };
 
 
@@ -221,6 +227,12 @@ struct PoseMeasurement
    * @param values Values to set the pose measurement
    */
   void set(const std::array<double, size> & values);
+
+  /**
+   * @brief The print operator for easy debugging
+   * @return A string representation of the pose measurement
+   */
+  std::string to_string() const;
 };
 
 
@@ -248,6 +260,12 @@ struct PoseMeasurementCovariance
    * @param values Values to set the pose measurement covariance
    */
   void set(const std::array<double, size> & values);
+
+  /**
+   * @brief The print operator for easy debugging
+   * @return A string representation of the pose measurement covariance
+   */
+  std::string to_string() const;
 };
 
 
@@ -256,7 +274,7 @@ struct PoseMeasurementCovariance
  */
 struct PoseVelocityMeasurement
 {
-  static const std::size_t size = 9; // 3 position + 3 orientation (quaternion) + 3 velocity
+  static const std::size_t size = 9; // 3 position + 3 orientation + 3 velocity
   std::array<double, size> data;
 
   /**
@@ -275,6 +293,12 @@ struct PoseVelocityMeasurement
    * @param values Values to set the pose and velocity measurement
    */
   void set(const std::array<double, size> & values);
+
+  /**
+   * @brief The print operator for easy debugging
+   * @return A string representation of the pose and velocity measurement
+   */
+  std::string to_string() const;
 };
 
 
@@ -283,7 +307,7 @@ struct PoseVelocityMeasurement
  */
 struct PoseVelocityMeasurementCovariance
 {
-  static const std::size_t size = 9; // 3 position + 3 orientation (quaternion) + 3 velocity
+  static const std::size_t size = 9; // 3 position + 3 orientation + 3 velocity
   std::array<double, size> data;
 
   /**
@@ -302,6 +326,12 @@ struct PoseVelocityMeasurementCovariance
    * @param values Values to set the pose and velocity measurement covariance
    */
   void set(const std::array<double, size> & values);
+
+  /**
+   * @brief The print operator for easy debugging
+   * @return A string representation of the pose and velocity measurement covariance
+   */
+  std::string to_string() const;
 };
 
 } // namespace ekf

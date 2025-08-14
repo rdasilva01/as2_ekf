@@ -181,6 +181,25 @@ void Input::set(const std::array<double, size> & values)
 }
 
 
+std::string Input::to_string() const
+{
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < data.size(); ++i) {
+    oss << data[i];
+
+    if (i + 1 != data.size()) {
+      oss << ", ";
+      if ((i + 1) % 6 == 0) {
+        oss << "\n ";
+      }
+    }
+  }
+  oss << "]";
+  return oss.str();
+}
+
+
 PoseMeasurement::PoseMeasurement()
 {
   data.fill(0.0);
@@ -196,6 +215,25 @@ PoseMeasurement::PoseMeasurement(const std::array<double, size> & values)
 void PoseMeasurement::set(const std::array<double, size> & values)
 {
   data = values;
+}
+
+
+std::string PoseMeasurement::to_string() const
+{
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < data.size(); ++i) {
+    oss << data[i];
+
+    if (i + 1 != data.size()) {
+      oss << ", ";
+      if ((i + 1) % 6 == 0) {
+        oss << "\n ";
+      }
+    }
+  }
+  oss << "]";
+  return oss.str();
 }
 
 
@@ -217,6 +255,25 @@ void PoseMeasurementCovariance::set(const std::array<double, size> & values)
 }
 
 
+std::string PoseMeasurementCovariance::to_string() const
+{
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < data.size(); ++i) {
+    oss << data[i];
+
+    if (i + 1 != data.size()) {
+      oss << ", ";
+      if ((i + 1) % 6 == 0) {
+        oss << "\n ";
+      }
+    }
+  }
+  oss << "]";
+  return oss.str();
+}
+
+
 PoseVelocityMeasurement::PoseVelocityMeasurement()
 {
   data.fill(0.0);
@@ -232,6 +289,25 @@ PoseVelocityMeasurement::PoseVelocityMeasurement(const std::array<double, size> 
 void PoseVelocityMeasurement::set(const std::array<double, size> & values)
 {
   data = values;
+}
+
+
+std::string PoseVelocityMeasurement::to_string() const
+{
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < data.size(); ++i) {
+    oss << data[i];
+
+    if (i + 1 != data.size()) {
+      oss << ", ";
+      if ((i + 1) % 9 == 0) {
+        oss << "\n ";
+      }
+    }
+  }
+  oss << "]";
+  return oss.str();
 }
 
 
@@ -252,6 +328,25 @@ PoseVelocityMeasurementCovariance::PoseVelocityMeasurementCovariance(
 void PoseVelocityMeasurementCovariance::set(const std::array<double, size> & values)
 {
   data = values;
+}
+
+
+std::string PoseVelocityMeasurementCovariance::to_string() const
+{
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < data.size(); ++i) {
+    oss << data[i];
+
+    if (i + 1 != data.size()) {
+      oss << ", ";
+      if ((i + 1) % 9 == 0) {
+        oss << "\n ";
+      }
+    }
+  }
+  oss << "]";
+  return oss.str();
 }
 
 
