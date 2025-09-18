@@ -34,10 +34,15 @@ __authors__ = 'Rodrigo da Silva Gómez'
 __copyright__ = 'Copyright (c) 2025 Universidad Politécnica de Madrid'
 __license__ = 'BSD-3-Clause'
 
-from ekf_definition.ekf import EKF
 import casadi as ca
+import sys
 import os
 import shutil
+from pathlib import Path
+project_src = Path(__file__).resolve().parents[1]
+print(f'Adding {project_src} to sys.path')
+sys.path.insert(0, str(project_src))
+from ekf_definition.ekf import EKF
 
 
 def main():
@@ -50,7 +55,7 @@ def main():
     # Get functions
     predict_function = ekf.predict_function
     update_pose_function = ekf.update_pose_function
-    update_pose_velocity_function = ekf.update_pose_velocity_function
+    update_velocity_function = ekf.update_velocity_function
 
     # Define the options for the code generation
     opts = {
@@ -63,7 +68,7 @@ def main():
     c = ca.CodeGenerator('ekf_c_code', opts)
     c.add(predict_function)
     c.add(update_pose_function)
-    c.add(update_pose_velocity_function)
+    c.add(update_velocity_function)
     c.generate()
 
     # Check if previous files exist, ask for confirmation to overwrite
