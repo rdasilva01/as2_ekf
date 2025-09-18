@@ -70,6 +70,28 @@ std::array<double, 3> State::get_orientation() const
 }
 
 
+std::array<double, 4> State::get_orientation_quaternion() const
+{
+  double roll = data[6];
+  double pitch = data[7];
+  double yaw = data[8];
+
+  double cy = cos(yaw * 0.5);
+  double sy = sin(yaw * 0.5);
+  double cr = cos(roll * 0.5);
+  double sr = sin(roll * 0.5);
+  double cp = cos(pitch * 0.5);
+  double sp = sin(pitch * 0.5);
+
+  double w = cr * cp * cy + sr * sp * sy;
+  double x = sr * cp * cy - cr * sp * sy;
+  double y = cr * sp * cy + sr * cp * sy;
+  double z = cr * cp * sy - sr * sp * cy;
+
+  return {x, y, z, w};
+}
+
+
 std::array<double, 3> State::get_accelerometer_bias() const
 {
   return {data[9], data[10], data[11]};
@@ -135,6 +157,25 @@ std::string Covariance::to_string() const
     if (i + 1 != data.size()) {
       oss << ", ";
       if ((i + 1) % 15 == 0) {
+        oss << "\n ";
+      }
+    }
+  }
+  oss << "]";
+  return oss.str();
+}
+
+
+std::string Covariance::to_string_diagonal() const
+{
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < 15; ++i) {
+    oss << data[i * 15 + i];
+
+    if (i + 1 != 15) {
+      oss << ", ";
+      if ((i + 1) % 3 == 0) {
         oss << "\n ";
       }
     }

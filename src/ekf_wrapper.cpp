@@ -36,7 +36,7 @@
 
 #include "ekf/ekf_wrapper.hpp"
 #include "Eigen/src/Core/Matrix.h"
-#include "ekf_datatype.hpp"
+#include "ekf/ekf_datatype.hpp"
 #include <algorithm>
 
 namespace ekf
@@ -226,6 +226,7 @@ Covariance EKFWrapper::compute_process_noise_covariance(
     pow(gyroscope_random_walk_, 2) *
     dt *
     Eigen::Matrix3d::Identity();
+
   process_noise_covariance.block<3, 3>(0, 0) = q_pp;
   process_noise_covariance.block<3, 3>(0, 3) = q_pv;
   process_noise_covariance.block<3, 3>(3, 0) = q_pv;
@@ -301,6 +302,102 @@ Eigen::Matrix4d EKFWrapper::compute_map_to_odom(
 }
 
 
+Eigen::Matrix4d EKFWrapper::get_T_b_c(
+  Eigen::Vector3d position_a_c,
+  Eigen::Vector3d rotation_a_c,
+  Eigen::Matrix4d T_a_b)
+{
+  // Eigen::Vector3d p = Eigen::Vector3d(state_T_a_c.get_position().data());
+  // Eigen::Vector3d r = Eigen::Vector3d(state_T_a_c.get_orientation().data());
+  Eigen::Matrix4d T_a_c = pose_to_transform(position_a_c, rotation_a_c);
+  Eigen::Matrix4d T_b_c = T_a_b.inverse() * T_a_c;
+  return T_b_c;
+}
+
+
+Eigen::Matrix4d EKFWrapper::get_T_a_c(
+  Eigen::Vector3d position_b_c,
+  Eigen::Vector3d rotation_b_c,
+  Eigen::Matrix4d T_a_b)
+{
+  // Eigen::Vector3d p = Eigen::Vector3d(state_T_a_c.get_position().data());
+  // Eigen::Vector3d r = Eigen::Vector3d(state_T_a_c.get_orientation().data());
+  Eigen::Matrix4d T_b_c = pose_to_transform(position_b_c, rotation_b_c);
+  Eigen::Matrix4d T_a_c = T_a_b * T_b_c;
+  return T_b_c;
+}
+
+
+Eigen::Matrix3d EKFWrapper::projectToSO3(const Eigen::Matrix3d & M)
+{
+  Eigen::JacobiSVD<Eigen::Matrix3d> svd(M, Eigen::ComputeFullU | Eigen::ComputeFullV);
+  Eigen::Matrix3d R = svd.matrixU() * svd.matrixV().transpose();
+
+  // Enforce det(R) = +1 (avoid reflections)
+  if (R.determinant() < 0.0) {
+    Eigen::Matrix3d U = svd.matrixU();
+    U.col(2) *= -1.0;
+    R = U * svd.matrixV().transpose();
+  }
+  return R;
+}
+
+
+Eigen::Vector<double, 7> EKFWrapper::transform_to_pose(const Eigen::Matrix4d & transform)
+{
+
+  // Extract raw rotation and translation
+  Eigen::Matrix3d M = transform.block<3, 3>(0, 0);
+  Eigen::Vector3d t = transform.block<3, 1>(0, 3);
+
+  // Project to nearest rotation to remove tiny scale/shear
+  Eigen::Matrix3d R = projectToSO3(M);
+
+  // Convert to quaternion (Eigen stores [x,y,z,w] in coeffs())
+  Eigen::Quaterniond q(R);
+  q.normalize();
+
+  Eigen::Vector<double, 7> pose;
+  pose[0] = t[0]; // x
+  pose[1] = t[1]; // y
+  pose[2] = t[2]; // z
+  pose[3] = q.x(); // qx
+  pose[4] = q.y(); // qy
+  pose[5] = q.z(); // qz
+  pose[6] = q.w(); // qw
+  return pose;
+}
+
+
+void EKFWrapper::correct_state()
+{
+  // Ensure the orientation angles are within valid ranges
+  double & roll = ekf_data_.state.data[State::ROLL];
+  double & pitch = ekf_data_.state.data[State::PITCH];
+  double & yaw = ekf_data_.state.data[State::YAW];
+
+  // If any angle is outside the range [-pi, pi], wrap it around
+  // roll = std::atan2(std::sin(roll), std::cos(roll));
+  // pitch = std::atan2(std::sin(pitch), std::cos(pitch));
+  // yaw = std::atan2(std::sin(yaw), std::cos(yaw));
+  roll = std::fmod(roll + M_PI, 2.0 * M_PI);
+  if (roll < 0.0) {
+    roll += 2.0 * M_PI;
+  }
+  roll -= M_PI;
+  pitch = std::fmod(pitch + M_PI, 2.0 * M_PI);
+  if (pitch < 0.0) {
+    pitch += 2.0 * M_PI;
+  }
+  pitch -= M_PI;
+  yaw = std::fmod(yaw + M_PI, 2.0 * M_PI);
+  if (yaw < 0.0) {
+    yaw += 2.0 * M_PI;
+  }
+  yaw -= M_PI;
+}
+
+
 void EKFWrapper::predict(
   const Input & input,
   const double & dt)
@@ -318,6 +415,7 @@ void EKFWrapper::predict(
     nullptr,
     nullptr,
     0);
+  correct_state();
 }
 
 
@@ -336,6 +434,7 @@ void EKFWrapper::update_pose(
     nullptr,
     nullptr,
     0);
+  correct_state();
 
   // Update the map to odom Transformation
   set_map_to_odom(
@@ -354,6 +453,7 @@ void EKFWrapper::update_pose_velocity(
   update_pose_velocity_arg_[4] = measurement_noise_covariance.data.data();
 
   State prev_state = get_state();
+  Covariance prev_covariance = get_state_covariance();
 
   update_pose_velocity_function(
     update_pose_velocity_arg_,
@@ -361,6 +461,29 @@ void EKFWrapper::update_pose_velocity(
     nullptr,
     nullptr,
     0);
+  correct_state(); // Correct the state angles
+
+  // Check mahalanobis distance to detect outliers
+  Eigen::Vector<double, 15> state_diff;
+  for (std::size_t i = 0; i < 15; ++i) {
+    state_diff[i] = get_state().data[i] - prev_state.data[i];
+  }
+  // Check if the position difference is greater than 5 meters
+  if (state_diff.head<3>().norm() > 5.0) {
+    // If so, revert to previous state and covariance
+    reset(
+      prev_state,
+      prev_covariance);
+    return;
+  }
+  // // Check if the velocity difference is greater than 3 m/s
+  // if (state_diff.segment<3>(3).norm() > 3.0) {
+  //   // If so, revert to previous state and covariance
+  //   reset(
+  //     prev_state,
+  //     prev_covariance);
+  //   return;
+  // }
 
   // Update the map to odom Transformation
   set_map_to_odom(

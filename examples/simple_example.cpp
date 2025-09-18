@@ -35,7 +35,7 @@
 */
 
 #include "ekf/ekf_wrapper.hpp"
-#include "ekf_datatype.hpp"
+#include "ekf/ekf_datatype.hpp"
 
 int main(int argc, char ** argv)
 {
@@ -57,6 +57,12 @@ int main(int argc, char ** argv)
   for (std::size_t i = 0; i < ekf::Covariance::size; ++i) {
     initial_covariance_values[i] = (i % 16 == 0) ? 0.0 : 0.0; // Identity matrix
   }
+  initial_covariance_values[ekf::Covariance::ABX] = 1e-1;
+  initial_covariance_values[ekf::Covariance::ABY] = 1e-1;
+  initial_covariance_values[ekf::Covariance::ABZ] = 1e-1;
+  initial_covariance_values[ekf::Covariance::WBX] = 1e-1;
+  initial_covariance_values[ekf::Covariance::WBY] = 1e-1;
+  initial_covariance_values[ekf::Covariance::WBZ] = 1e-1;
 
   ekf_wrapper.reset(
     ekf::State(initial_state_values),
@@ -98,6 +104,9 @@ int main(int argc, char ** argv)
   imu_input.set(imu_values);
 
   ekf::State prev_state = ekf_wrapper.get_state();
+  ekf::Covariance prev_covariance = ekf_wrapper.get_state_covariance();
+  std::cout << "Previous State: \n" << prev_state.to_string() << std::endl;
+  std::cout << "Previous Covariance: \n" << prev_covariance.to_string() << std::endl;
 
   // Predict the next state with a time step of 1 seconds
   double seconds = 1.0;
@@ -105,9 +114,15 @@ int main(int argc, char ** argv)
   int steps = seconds / dt;
   std::cout << "Predicting for " << steps << " steps with dt = " << dt << ". Total of " <<
     seconds << " seconds." << std::endl;
-  for (int i = 0; i < steps; ++i) {
+  ekf_wrapper.predict(imu_input, dt);
+  std::cout << "State: \n" << ekf_wrapper.get_state().to_string() << std::endl;
+  std::cout << "Covariance: \n" << ekf_wrapper.get_state_covariance().to_string() << std::endl;
+  for (int i = 0; i < steps - 1; ++i) {
     // std::cout << "Step " << i + 1 << " of " << steps << std::endl;
     ekf_wrapper.predict(imu_input, dt);
+    // Print state and covariance
+    // std::cout << "State: \n" << ekf_wrapper.get_state().to_string() << std::endl;
+    // std::cout << "Covariance: \n" << ekf_wrapper.get_state_covariance().to_string() << std::endl;
   }
 
   ekf::Covariance process_noise_covariance =
@@ -132,16 +147,141 @@ int main(int argc, char ** argv)
   std::cout << "Pose Measurement Covariance: \n" << pose_measurement_covariance.to_string() <<
     std::endl;
 
-  ekf_wrapper.update_pose(pose_measurement, pose_measurement_covariance);
+  ekf::State state;
+  ekf::Covariance covariance;
+  Eigen::Matrix4d map_to_odom;
 
-  std::cout << "State after pose update: \n" << ekf_wrapper.get_state().to_string() << std::endl;
-  std::cout << "Covariance after pose update: \n" <<
-    ekf_wrapper.get_state_covariance().to_string() <<
-    std::endl;
+  state = ekf_wrapper.get_state();
+  covariance = ekf_wrapper.get_state_covariance();
+  map_to_odom = ekf_wrapper.get_map_to_odom();
 
   // Print the map to odom transformation
-  Eigen::Matrix4d map_to_odom = ekf_wrapper.get_map_to_odom();
   std::cout << "Map to Odom Transformation: \n" << map_to_odom << std::endl;
+
+  // Print the odom to base transformation
+  Eigen::Matrix4d odom_to_base = ekf_wrapper.get_T_b_c(
+    Eigen::Vector3d(state.get_position().data()),
+    Eigen::Vector3d(state.get_orientation().data()),
+    map_to_odom);
+
+  std::cout << "Odom to Base Transformation: \n" << odom_to_base << std::endl;
+
+
+  // Update the state with the pose measurement
+  // Update and predict in a loop
+  for (int i = 0; i < 100; ++i) {
+    ekf_wrapper.predict(imu_input, dt);
+    ekf_wrapper.predict(imu_input, dt);
+    ekf_wrapper.predict(imu_input, dt);
+    ekf_wrapper.update_pose(pose_measurement, pose_measurement_covariance);
+  }
+
+
+  state = ekf_wrapper.get_state();
+  covariance = ekf_wrapper.get_state_covariance();
+  map_to_odom = ekf_wrapper.get_map_to_odom();
+
+  std::cout << "State after pose update: \n" << state.to_string() << std::endl;
+  std::cout << "Covariance after pose update: \n" <<
+    covariance.to_string() << std::endl;
+
+  // Print the map to odom transformation
+  std::cout << "Map to Odom Transformation: \n" << map_to_odom << std::endl;
+
+  // Print the odom to base transformation
+  odom_to_base = ekf_wrapper.get_T_b_c(
+    Eigen::Vector3d(state.get_position().data()),
+    Eigen::Vector3d(state.get_orientation().data()),
+    map_to_odom);
+
+  std::cout << "Odom to Base Transformation: \n" << odom_to_base << std::endl;
+
+  // Reset the state to zero
+  ekf_wrapper.reset(
+    ekf::State(initial_state_values),
+    ekf::Covariance(initial_covariance_values));
+
+  // Turn 90 degrees in yaw in 1 second
+  imu_values = {0.0, 0.0, 9.81, 0.0, 0.0, M_PI / 2.0};
+  imu_input.set(imu_values);
+  seconds = 1.0;
+  dt = 1.0 / 200.0;
+  steps = seconds / dt;
+  std::cout << "Predicting for " << steps << " steps with dt = " << dt << ". Total of " <<
+    seconds << " seconds." << std::endl;
+  for (int i = 0; i < steps; ++i) {
+    ekf_wrapper.predict(imu_input, dt);
+  }
+  state = ekf_wrapper.get_state();
+  covariance = ekf_wrapper.get_state_covariance();
+  map_to_odom = ekf_wrapper.get_map_to_odom();
+  std::cout << "State after yaw rotation: \n" << state.to_string() << std::endl;
+  std::cout << "Covariance after yaw rotation: \n" <<
+    covariance.to_string() << std::endl;
+  // Print the map to odom transformation
+  std::cout << "Map to Odom Transformation: \n" << map_to_odom << std::endl;
+
+  // Accelerate forward for 1 second
+  imu_values = {1.0, 0.0, 9.81, 0.0, 0.0, 0.0};
+  imu_input.set(imu_values);
+  seconds = 1.0;
+  dt = 1.0 / 200.0;
+  steps = seconds / dt;
+  std::cout << "Predicting for " << steps << " steps with dt = " << dt << ". Total of " <<
+    seconds << " seconds." << std::endl;
+  for (int i = 0; i < steps; ++i) {
+    ekf_wrapper.predict(imu_input, dt);
+  }
+  state = ekf_wrapper.get_state();
+  covariance = ekf_wrapper.get_state_covariance();
+  map_to_odom = ekf_wrapper.get_map_to_odom();
+
+  // Stop acceleration
+  imu_values = {0.0, 0.0, 9.81, 0.0, 0.0, 0.0};
+  imu_input.set(imu_values);
+  seconds = 1.0;
+  dt = 1.0 / 200.0;
+  steps = seconds / dt;
+  std::cout << "Predicting for " << steps << " steps with dt = " << dt << ". Total of " <<
+    seconds << " seconds." << std::endl;
+  for (int i = 0; i < steps; ++i) {
+    ekf_wrapper.predict(imu_input, dt);
+  }
+  state = ekf_wrapper.get_state();
+  covariance = ekf_wrapper.get_state_covariance();
+  map_to_odom = ekf_wrapper.get_map_to_odom();
+  std::cout << "State after acceleration: \n" << state.to_string() << std::endl;
+  std::cout << "Covariance after acceleration: \n" <<
+    covariance.to_string() << std::endl;
+  // Print the map to odom transformation
+  std::cout << "Map to Odom Transformation: \n" << map_to_odom << std::endl;
+
+  // // Turn in yaw a full circle in 5 seconds
+  // imu_values = {0.0, 0.0, 9.81, 0.0, 0.0, 2.0 * M_PI};
+  // imu_input.set(imu_values);
+  // seconds = 5.0;
+  // dt = 1.0 / 200.0;
+  // steps = seconds / dt;
+  // std::cout << "Predicting for " << steps << " steps with dt = " << dt << ". Total of " <<
+  //   seconds << " seconds." << std::endl;
+  // for (int i = 0; i < steps; ++i) {
+  //   ekf_wrapper.predict(imu_input, dt);
+  //   // Print every second
+  //   if ((i + 1) % 200 == 0) {
+  //     std::cout << "Step " << i + 1 << " of " << steps << std::endl;
+  //     state = ekf_wrapper.get_state();
+  //     std::cout << "State: \n" << state.to_string() << std::endl;
+  //   }
+  // }
+  // state = ekf_wrapper.get_state();
+  // covariance = ekf_wrapper.get_state_covariance();
+  // map_to_odom = ekf_wrapper.get_map_to_odom();
+
+  // std::cout << "State after yaw rotation: \n" << state.to_string() << std::endl;
+  // std::cout << "Covariance after yaw rotation: \n" <<
+  //   covariance.to_string() << std::endl;
+  // // Print the map to odom transformation
+  // std::cout << "Map to Odom Transformation: \n" << map_to_odom << std::endl;
 
   // // Test compute_map_to_odom
   // ekf::State new_state = ekf_wrapper.get_state();

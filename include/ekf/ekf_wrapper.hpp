@@ -169,10 +169,10 @@ public:
 
 
   /**
-   * @brief Get the gravity vector.
-   *
-   * @return The gravity vector.
-   */
+     * @brief Get the gravity vector.
+     *
+     * @return The gravity vector.
+     */
   Gravity get_gravity();
 
 
@@ -226,6 +226,47 @@ public:
 
 
   /**
+   * @brief Get the transformation from b to c from state T_a_c and T_a_b.
+   * @param position_a_c (Eigen::Vector3d) The position of c in a.
+   * @param rotation_a_c (Eigen::Vector3d) The rotation of c in a (Euler angles).
+   * @param T_a_b (Eigen::Matrix4d) The transformation from a to b.
+   * @return The transformation from b to c.
+   */
+  Eigen::Matrix4d get_T_b_c(
+    Eigen::Vector3d position_a_c,
+    Eigen::Vector3d rotation_a_c,
+    Eigen::Matrix4d T_a_b);
+
+  /**
+   * @brief Get the transformation from a to c from state T_b_c and T_a_b.
+   * @param position (Eigen::Vector3d) The position of c in b.
+   * @param rotation (Eigen::Vector3d) The rotation of c in b (Euler angles).
+   * @param T_a_b (Eigen::Matrix4d) The transformation from a to b.
+   * @return The transformation from b to c.
+   */
+  Eigen::Matrix4d get_T_a_c(
+    Eigen::Vector3d position_b_c,
+    Eigen::Vector3d rotation_b_c,
+    Eigen::Matrix4d T_a_b);
+
+
+  /**
+   * @brief Project a matrix to SO(3).
+   * @param M (Eigen::Matrix3d) The matrix to project.
+   * @return The projected matrix in SO(3).
+   */
+  static Eigen::Matrix3d projectToSO3(const Eigen::Matrix3d & M);
+
+
+  /**
+   * @brief Transform to pose.
+   * @param (Eigen::Matrix4d) transform The transformation matrix.
+   * @return The pose as a vector of size 7.
+   */
+  static Eigen::Vector<double, 7> transform_to_pose(const Eigen::Matrix4d & transform);
+
+
+  /**
    * @brief Predict the next state.
    *
    * @param imu_measurement (Input) The IMU measurement vector.
@@ -257,21 +298,28 @@ public:
     const PoseVelocityMeasurement & z,
     const PoseVelocityMeasurementCovariance & measurement_noise_covariance);
 
+
+  /**
+   * @brief Correct the state to be within valid bounds.
+   * Ensures angles are within [-pi, pi].
+   */
+  void correct_state();
+
 private:
-  EKFData ekf_data_; // EKF data structure
-  Eigen::Vector<double, 6> imu_noise_; // IMU noise vector
-  double accelerometer_noise_density_; // Accelerometer noise density
-  double gyroscope_noise_density_; // Gyroscope noise density
-  double accelerometer_random_walk_; // Accelerometer random walk
-  double gyroscope_random_walk_; // Gyroscope random walk
+  EKFData ekf_data_;   // EKF data structure
+  Eigen::Vector<double, 6> imu_noise_;   // IMU noise vector
+  double accelerometer_noise_density_;   // Accelerometer noise density
+  double gyroscope_noise_density_;   // Gyroscope noise density
+  double accelerometer_random_walk_;   // Accelerometer random walk
+  double gyroscope_random_walk_;   // Gyroscope random walk
   Gravity acc_in_world;
 
-  const double * arg_[predict_function_SZ_ARG]; // Arguments for the predict functionality
-  double * res_[predict_function_SZ_RES]; // Results for the predict functionality
-  const double * update_pose_arg_[update_pose_function_SZ_ARG]; // Arguments for the update pose functionality
-  double * update_pose_res_[update_pose_function_SZ_RES]; // Results for the update pose functionality
-  const double * update_pose_velocity_arg_[update_pose_velocity_function_SZ_ARG]; // Arguments for the update pose velocity functionality
-  double * update_pose_velocity_res_[update_pose_velocity_function_SZ_RES]; // Results for the update pose velocity functionality
+  const double * arg_[predict_function_SZ_ARG];   // Arguments for the predict functionality
+  double * res_[predict_function_SZ_RES];   // Results for the predict functionality
+  const double * update_pose_arg_[update_pose_function_SZ_ARG];   // Arguments for the update pose functionality
+  double * update_pose_res_[update_pose_function_SZ_RES];   // Results for the update pose functionality
+  const double * update_pose_velocity_arg_[update_pose_velocity_function_SZ_ARG];   // Arguments for the update pose velocity functionality
+  double * update_pose_velocity_res_[update_pose_velocity_function_SZ_RES];   // Results for the update pose velocity functionality
 
 
   /**

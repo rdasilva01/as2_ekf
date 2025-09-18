@@ -189,6 +189,12 @@ class EKF():
         self.Q = ca.SX.sym('Q', self.X.size()[0], self.X.size()[0])
 
         # Predict step
+        # X_pred = new state prediction
+        # f = result of the state transition function
+        # P_pred = new state covariance prediction
+        # F = Jacobian of f with respect to state
+        # P = current state covariance
+        # Q = process noise covariance
         self.X_pred = self.f
         # self.P_pred = self.F @ self.P @ self.F.T + self.L @ self.Q @ self.L.T
         self.P_pred = self.F @ self.P @ self.F.T + self.Q
@@ -204,6 +210,16 @@ class EKF():
                 if i == j:
                     self.R_pose[i, j] = self.aux_R_vector_pose[i]
 
+        # Y_residual_pose = measurement residual
+        # Z_pose = measurement
+        # h_pose = expected measurement from the state
+        # S_pose = residual covariance
+        # H_pose = Jacobian of h_pose with respect to state
+        # P = current state covariance
+        # R_pose = measurement noise covariance
+        # K_pose = Kalman gain
+        # X_update_pose = updated state
+        # P_update_pose = updated state covariance
         self.Y_residual_pose = self.Z_pose - self.h_pose
         self.S_pose = self.H_pose @ self.P @ self.H_pose.T + self.R_pose
         self.K_pose = self.P @ self.H_pose.T @ ca.pinv(self.S_pose)

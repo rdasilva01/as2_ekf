@@ -38,6 +38,7 @@
 #define EKF__EKF_DATATYPE_H
 
 #include <array>
+#include <cmath>
 #include <string>
 #include <sstream>
 #include <iomanip>
@@ -52,6 +53,22 @@ namespace ekf
 struct State
 {
   static const std::size_t size = 15;
+  static const int X = 0;
+  static const int Y = 1;
+  static const int Z = 2;
+  static const int VX = 3;
+  static const int VY = 4;
+  static const int VZ = 5;
+  static const int ROLL = 6;
+  static const int PITCH = 7;
+  static const int YAW = 8;
+  static const int ABX = 9;
+  static const int ABY = 10;
+  static const int ABZ = 11;
+  static const int WBX = 12;
+  static const int WBY = 13;
+  static const int WBZ = 14;
+
   std::array<double, size> data;
 
   /**
@@ -90,6 +107,12 @@ struct State
   std::array<double, 3> get_orientation() const;
 
   /**
+   * @brief Get orientation as a quaternion (qx, qy, qz, qw)
+   * @return A 4D vector representing the orientation as a quaternion
+   */
+  std::array<double, 4> get_orientation_quaternion() const;
+
+  /**
    * @brief Get accelerometer bias (abx, aby, abz)
    * @return A 3D vector representing the accelerometer bias
    */
@@ -116,6 +139,24 @@ struct State
 struct Covariance
 {
   static const std::size_t size = 225; // 15x15 covariance matrix
+  static const int rows = 15;
+  static const int cols = 15;
+  static const int X = 0;
+  static const int Y = 16;
+  static const int Z = 32;
+  static const int VX = 48;
+  static const int VY = 64;
+  static const int VZ = 80;
+  static const int ROLL = 96;
+  static const int PITCH = 112;
+  static const int YAW = 128;
+  static const int ABX = 144;
+  static const int ABY = 160;
+  static const int ABZ = 176;
+  static const int WBX = 192;
+  static const int WBY = 208;
+  static const int WBZ = 224;
+
   std::array<double, size> data;
 
   /**
@@ -137,9 +178,15 @@ struct Covariance
 
   /**
    * @brief The print operator for easy debugging
-   * @return A string representation of the state
+   * @return A string representation of the covariance
    */
   std::string to_string() const;
+
+  /**
+   * @brief The print operator for easy debugging of the main diagonal
+   * @return A string representation of the main diagonal of the covariance
+   */
+  std::string to_string_diagonal() const;
 };
 
 
@@ -149,6 +196,9 @@ struct Covariance
 struct Gravity
 {
   static const std::size_t size = 3;
+  static const int X = 0;
+  static const int Y = 1;
+  static const int Z = 2;
   std::array<double, size> data;
 
   /**
@@ -176,6 +226,12 @@ struct Gravity
 struct Input
 {
   static const std::size_t size = 6; // 3 accelerometer + 3 gyroscope
+  static const int AX = 0;
+  static const int AY = 1;
+  static const int AZ = 2;
+  static const int WX = 3;
+  static const int WY = 4;
+  static const int WZ = 5;
   std::array<double, size> data;
 
   /**
@@ -208,7 +264,13 @@ struct Input
  */
 struct PoseMeasurement
 {
-  static const std::size_t size = 6; // 3 position + 3 orientation (quaternion)
+  static const std::size_t size = 6; // 3 position + 3 orientation
+  static const int X = 0;
+  static const int Y = 1;
+  static const int Z = 2;
+  static const int ROLL = 3;
+  static const int PITCH = 4;
+  static const int YAW = 5;
   std::array<double, size> data;
 
   /**
@@ -241,7 +303,13 @@ struct PoseMeasurement
  */
 struct PoseMeasurementCovariance
 {
-  static const std::size_t size = 6; // 3 position + 3 orientation (quaternion)
+  static const std::size_t size = 6; // 3 position + 3 orientation
+  static const int X = 0;
+  static const int Y = 1;
+  static const int Z = 2;
+  static const int ROLL = 3;
+  static const int PITCH = 4;
+  static const int YAW = 5;
   std::array<double, size> data;
 
   /**
@@ -275,6 +343,15 @@ struct PoseMeasurementCovariance
 struct PoseVelocityMeasurement
 {
   static const std::size_t size = 9; // 3 position + 3 orientation + 3 velocity
+  static const int X = 0;
+  static const int Y = 1;
+  static const int Z = 2;
+  static const int ROLL = 3;
+  static const int PITCH = 4;
+  static const int YAW = 5;
+  static const int VX = 6;
+  static const int VY = 7;
+  static const int VZ = 8;
   std::array<double, size> data;
 
   /**
@@ -308,6 +385,15 @@ struct PoseVelocityMeasurement
 struct PoseVelocityMeasurementCovariance
 {
   static const std::size_t size = 9; // 3 position + 3 orientation + 3 velocity
+  static const int X = 0;
+  static const int Y = 1;
+  static const int Z = 2;
+  static const int ROLL = 3;
+  static const int PITCH = 4;
+  static const int YAW = 5;
+  static const int VX = 6;
+  static const int VY = 7;
+  static const int VZ = 8;
   std::array<double, size> data;
 
   /**
