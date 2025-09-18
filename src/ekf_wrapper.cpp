@@ -104,12 +104,12 @@ void EKFWrapper::initialize_args_and_results()
   update_pose_arg_[3] = ekf_data_.covariance.data.data();
   update_pose_res_[0] = ekf_data_.state.data.data();
   update_pose_res_[1] = ekf_data_.covariance.data.data();
-  // Update pose velocity arguments and results for the C code interface
-  update_pose_velocity_arg_[0] = ekf_data_.state.data.data();
-  update_pose_velocity_arg_[1] = imu_noise_.data();
-  update_pose_velocity_arg_[3] = ekf_data_.covariance.data.data();
-  update_pose_velocity_res_[0] = ekf_data_.state.data.data();
-  update_pose_velocity_res_[1] = ekf_data_.covariance.data.data();
+  // Update velocity arguments and results for the C code interface
+  update_velocity_arg_[0] = ekf_data_.state.data.data();
+  update_velocity_arg_[1] = imu_noise_.data();
+  update_velocity_arg_[3] = ekf_data_.covariance.data.data();
+  update_velocity_res_[0] = ekf_data_.state.data.data();
+  update_velocity_res_[1] = ekf_data_.covariance.data.data();
 }
 
 
@@ -138,7 +138,7 @@ void EKFWrapper::set_noise_parameters(
 
   arg_[2] = imu_noise_.data();
   update_pose_arg_[1] = imu_noise_.data();
-  update_pose_velocity_arg_[1] = imu_noise_.data();
+  update_velocity_arg_[1] = imu_noise_.data();
 }
 
 
@@ -445,29 +445,29 @@ void EKFWrapper::update_pose(
 }
 
 
-void EKFWrapper::update_pose_velocity(
-  const PoseVelocityMeasurement & z,
-  const PoseVelocityMeasurementCovariance & measurement_noise_covariance)
+void EKFWrapper::update_velocity(
+  const VelocityMeasurement & z,
+  const VelocityMeasurementCovariance & measurement_noise_covariance)
 {
-  update_pose_velocity_arg_[2] = z.data.data();
-  update_pose_velocity_arg_[4] = measurement_noise_covariance.data.data();
+  update_velocity_arg_[2] = z.data.data();
+  update_velocity_arg_[4] = measurement_noise_covariance.data.data();
 
   State prev_state = get_state();
   Covariance prev_covariance = get_state_covariance();
 
-  update_pose_velocity_function(
-    update_pose_velocity_arg_,
-    update_pose_velocity_res_,
+  update_velocity_function(
+    update_velocity_arg_,
+    update_velocity_res_,
     nullptr,
     nullptr,
     0);
   correct_state(); // Correct the state angles
 
-  // Check mahalanobis distance to detect outliers
-  Eigen::Vector<double, 15> state_diff;
-  for (std::size_t i = 0; i < 15; ++i) {
-    state_diff[i] = get_state().data[i] - prev_state.data[i];
-  }
+  // // Check mahalanobis distance to detect outliers
+  // Eigen::Vector<double, 15> state_diff;
+  // for (std::size_t i = 0; i < 15; ++i) {
+  //   state_diff[i] = get_state().data[i] - prev_state.data[i];
+  // }
   // // Check if the position difference is greater than 5 meters
   // if (state_diff.head<3>().norm() > 5.0) {
   //   // If so, revert to previous state and covariance

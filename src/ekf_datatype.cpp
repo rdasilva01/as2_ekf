@@ -315,25 +315,25 @@ std::string PoseMeasurementCovariance::to_string() const
 }
 
 
-PoseVelocityMeasurement::PoseVelocityMeasurement()
+VelocityMeasurement::VelocityMeasurement()
 {
   data.fill(0.0);
 }
 
 
-PoseVelocityMeasurement::PoseVelocityMeasurement(const std::array<double, size> & values)
+VelocityMeasurement::VelocityMeasurement(const std::array<double, size> & values)
 {
   set(values);
 }
 
 
-void PoseVelocityMeasurement::set(const std::array<double, size> & values)
+void VelocityMeasurement::set(const std::array<double, size> & values)
 {
   data = values;
 }
 
 
-std::string PoseVelocityMeasurement::to_string() const
+std::string VelocityMeasurement::to_string() const
 {
   std::ostringstream oss;
   oss << "[";
@@ -342,7 +342,7 @@ std::string PoseVelocityMeasurement::to_string() const
 
     if (i + 1 != data.size()) {
       oss << ", ";
-      if ((i + 1) % 9 == 0) {
+      if ((i + 1) % 3 == 0) {
         oss << "\n ";
       }
     }
@@ -352,13 +352,13 @@ std::string PoseVelocityMeasurement::to_string() const
 }
 
 
-PoseVelocityMeasurementCovariance::PoseVelocityMeasurementCovariance()
+VelocityMeasurementCovariance::VelocityMeasurementCovariance()
 {
   data.fill(0.0);
 }
 
 
-PoseVelocityMeasurementCovariance::PoseVelocityMeasurementCovariance(
+VelocityMeasurementCovariance::VelocityMeasurementCovariance(
   const std::array<double,
   size> & values)
 {
@@ -366,13 +366,13 @@ PoseVelocityMeasurementCovariance::PoseVelocityMeasurementCovariance(
 }
 
 
-void PoseVelocityMeasurementCovariance::set(const std::array<double, size> & values)
+void VelocityMeasurementCovariance::set(const std::array<double, size> & values)
 {
   data = values;
 }
 
 
-std::string PoseVelocityMeasurementCovariance::to_string() const
+std::string VelocityMeasurementCovariance::to_string() const
 {
   std::ostringstream oss;
   oss << "[";
@@ -381,7 +381,7 @@ std::string PoseVelocityMeasurementCovariance::to_string() const
 
     if (i + 1 != data.size()) {
       oss << ", ";
-      if ((i + 1) % 9 == 0) {
+      if ((i + 1) % 3 == 0) {
         oss << "\n ";
       }
     }

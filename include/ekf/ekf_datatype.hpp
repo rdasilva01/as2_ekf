@@ -338,42 +338,36 @@ struct PoseMeasurementCovariance
 
 
 /**
- * @brief Pose and Velocity measurement Z_pose_velocity
+ * @brief Velocity measurement Z_velocity
  */
-struct PoseVelocityMeasurement
+struct VelocityMeasurement
 {
-  static const std::size_t size = 9; // 3 position + 3 orientation + 3 velocity
-  static const int X = 0;
-  static const int Y = 1;
-  static const int Z = 2;
-  static const int ROLL = 3;
-  static const int PITCH = 4;
-  static const int YAW = 5;
-  static const int VX = 6;
-  static const int VY = 7;
-  static const int VZ = 8;
+  static const std::size_t size = 3; // 3 velocity
+  static const int VX = 0;
+  static const int VY = 1;
+  static const int VZ = 2;
   std::array<double, size> data;
 
   /**
    * @brief Constructor
    */
-  PoseVelocityMeasurement();
+  VelocityMeasurement();
 
   /**
    * @brief Constructor with initial values
-   * @param values Initial values for the pose and velocity measurement
+   * @param values Initial values for the velocity measurement
    */
-  PoseVelocityMeasurement(const std::array<double, size> & values);
+  VelocityMeasurement(const std::array<double, size> & values);
 
   /**
-   * @brief Sets the pose and velocity measurement to the provided values
-   * @param values Values to set the pose and velocity measurement
+   * @brief Sets the velocity measurement to the provided values
+   * @param values Values to set the velocity measurement
    */
   void set(const std::array<double, size> & values);
 
   /**
    * @brief The print operator for easy debugging
-   * @return A string representation of the pose and velocity measurement
+   * @return A string representation of the velocity measurement
    */
   std::string to_string() const;
 };
@@ -382,40 +376,34 @@ struct PoseVelocityMeasurement
 /**
  * @brief Pose and Velocity measurement covariance diagonal R_pose_velocity
  */
-struct PoseVelocityMeasurementCovariance
+struct VelocityMeasurementCovariance
 {
-  static const std::size_t size = 9; // 3 position + 3 orientation + 3 velocity
-  static const int X = 0;
-  static const int Y = 1;
-  static const int Z = 2;
-  static const int ROLL = 3;
-  static const int PITCH = 4;
-  static const int YAW = 5;
-  static const int VX = 6;
-  static const int VY = 7;
-  static const int VZ = 8;
+  static const std::size_t size = 3; // 3 velocity
+  static const int VX = 0;
+  static const int VY = 1;
+  static const int VZ = 2;
   std::array<double, size> data;
 
   /**
    * @brief Constructor
    */
-  PoseVelocityMeasurementCovariance();
+  VelocityMeasurementCovariance();
 
   /**
    * @brief Constructor with initial values
-   * @param values Initial values for the pose and velocity measurement covariance
+   * @param values Initial values for the velocity measurement covariance
    */
-  PoseVelocityMeasurementCovariance(const std::array<double, size> & values);
+  VelocityMeasurementCovariance(const std::array<double, size> & values);
 
   /**
-   * @brief Sets the pose and velocity measurement covariance to the provided values
-   * @param values Values to set the pose and velocity measurement covariance
+   * @brief Sets the velocity measurement covariance to the provided values
+   * @param values Values to set the velocity measurement covariance
    */
   void set(const std::array<double, size> & values);
 
   /**
    * @brief The print operator for easy debugging
-   * @return A string representation of the pose and velocity measurement covariance
+   * @return A string representation of the velocity measurement covariance
    */
   std::string to_string() const;
 };

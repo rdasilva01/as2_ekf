@@ -289,14 +289,14 @@ public:
 
 
   /**
-   * @brief Update the state with a new pose and velocity measurement.
+   * @brief Update the state with a new velocity measurement.
    *
-   * @param z (PoseVelocityMeasurement) The measurement (pose and velocity) vector.
-   * @param measurement_noise_covariance (PoseVelocityMeasurementCovariance) The measurement noise covariance matrix.
+   * @param z (VelocityMeasurement) The measurement (velocity) vector.
+   * @param measurement_noise_covariance (VelocityMeasurementCovariance) The measurement noise covariance matrix.
    */
-  void update_pose_velocity(
-    const PoseVelocityMeasurement & z,
-    const PoseVelocityMeasurementCovariance & measurement_noise_covariance);
+  void update_velocity(
+    const VelocityMeasurement & z,
+    const VelocityMeasurementCovariance & measurement_noise_covariance);
 
 
   /**
@@ -318,8 +318,8 @@ private:
   double * res_[predict_function_SZ_RES];   // Results for the predict functionality
   const double * update_pose_arg_[update_pose_function_SZ_ARG];   // Arguments for the update pose functionality
   double * update_pose_res_[update_pose_function_SZ_RES];   // Results for the update pose functionality
-  const double * update_pose_velocity_arg_[update_pose_velocity_function_SZ_ARG];   // Arguments for the update pose velocity functionality
-  double * update_pose_velocity_res_[update_pose_velocity_function_SZ_RES];   // Results for the update pose velocity functionality
+  const double * update_velocity_arg_[update_velocity_function_SZ_ARG];   // Arguments for the update pose velocity functionality
+  double * update_velocity_res_[update_velocity_function_SZ_RES];   // Results for the update pose velocity functionality
 
 
   /**
