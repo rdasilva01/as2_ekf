@@ -468,14 +468,14 @@ void EKFWrapper::update_pose_velocity(
   for (std::size_t i = 0; i < 15; ++i) {
     state_diff[i] = get_state().data[i] - prev_state.data[i];
   }
-  // Check if the position difference is greater than 5 meters
-  if (state_diff.head<3>().norm() > 5.0) {
-    // If so, revert to previous state and covariance
-    reset(
-      prev_state,
-      prev_covariance);
-    return;
-  }
+  // // Check if the position difference is greater than 5 meters
+  // if (state_diff.head<3>().norm() > 5.0) {
+  //   // If so, revert to previous state and covariance
+  //   reset(
+  //     prev_state,
+  //     prev_covariance);
+  //   return;
+  // }
   // // Check if the velocity difference is greater than 3 m/s
   // if (state_diff.segment<3>(3).norm() > 3.0) {
   //   // If so, revert to previous state and covariance

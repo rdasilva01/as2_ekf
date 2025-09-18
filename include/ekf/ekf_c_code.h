@@ -55,24 +55,24 @@ extern "C" int update_pose_function_work_bytes(casadi_int *sz_arg, casadi_int* s
 #define update_pose_function_SZ_RES 2
 #define update_pose_function_SZ_IW 0
 #define update_pose_function_SZ_W 0
-extern "C" int update_pose_velocity_function(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem);
-extern "C" int update_pose_velocity_function_alloc_mem(void);
-extern "C" int update_pose_velocity_function_init_mem(int mem);
-extern "C" void update_pose_velocity_function_free_mem(int mem);
-extern "C" int update_pose_velocity_function_checkout(void);
-extern "C" void update_pose_velocity_function_release(int mem);
-extern "C" void update_pose_velocity_function_incref(void);
-extern "C" void update_pose_velocity_function_decref(void);
-extern "C" casadi_int update_pose_velocity_function_n_in(void);
-extern "C" casadi_int update_pose_velocity_function_n_out(void);
-extern "C" casadi_real update_pose_velocity_function_default_in(casadi_int i);
-extern "C" const char* update_pose_velocity_function_name_in(casadi_int i);
-extern "C" const char* update_pose_velocity_function_name_out(casadi_int i);
-extern "C" const casadi_int* update_pose_velocity_function_sparsity_in(casadi_int i);
-extern "C" const casadi_int* update_pose_velocity_function_sparsity_out(casadi_int i);
-extern "C" int update_pose_velocity_function_work(casadi_int *sz_arg, casadi_int* sz_res, casadi_int *sz_iw, casadi_int *sz_w);
-extern "C" int update_pose_velocity_function_work_bytes(casadi_int *sz_arg, casadi_int* sz_res, casadi_int *sz_iw, casadi_int *sz_w);
-#define update_pose_velocity_function_SZ_ARG 5
-#define update_pose_velocity_function_SZ_RES 2
-#define update_pose_velocity_function_SZ_IW 0
-#define update_pose_velocity_function_SZ_W 0
+extern "C" int update_velocity_function(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem);
+extern "C" int update_velocity_function_alloc_mem(void);
+extern "C" int update_velocity_function_init_mem(int mem);
+extern "C" void update_velocity_function_free_mem(int mem);
+extern "C" int update_velocity_function_checkout(void);
+extern "C" void update_velocity_function_release(int mem);
+extern "C" void update_velocity_function_incref(void);
+extern "C" void update_velocity_function_decref(void);
+extern "C" casadi_int update_velocity_function_n_in(void);
+extern "C" casadi_int update_velocity_function_n_out(void);
+extern "C" casadi_real update_velocity_function_default_in(casadi_int i);
+extern "C" const char* update_velocity_function_name_in(casadi_int i);
+extern "C" const char* update_velocity_function_name_out(casadi_int i);
+extern "C" const casadi_int* update_velocity_function_sparsity_in(casadi_int i);
+extern "C" const casadi_int* update_velocity_function_sparsity_out(casadi_int i);
+extern "C" int update_velocity_function_work(casadi_int *sz_arg, casadi_int* sz_res, casadi_int *sz_iw, casadi_int *sz_w);
+extern "C" int update_velocity_function_work_bytes(casadi_int *sz_arg, casadi_int* sz_res, casadi_int *sz_iw, casadi_int *sz_w);
+#define update_velocity_function_SZ_ARG 5
+#define update_velocity_function_SZ_RES 2
+#define update_velocity_function_SZ_IW 0
+#define update_velocity_function_SZ_W 0
