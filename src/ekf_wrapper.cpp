@@ -324,7 +324,7 @@ Eigen::Matrix4d EKFWrapper::get_T_a_c(
   // Eigen::Vector3d r = Eigen::Vector3d(state_T_a_c.get_orientation().data());
   Eigen::Matrix4d T_b_c = pose_to_transform(position_b_c, rotation_b_c);
   Eigen::Matrix4d T_a_c = T_a_b * T_b_c;
-  return T_b_c;
+  return T_a_c;
 }
 
 
