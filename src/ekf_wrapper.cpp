@@ -160,6 +160,11 @@ State EKFWrapper::get_state()
   return ekf_data_.state;
 }
 
+void EKFWrapper::set_state(const State & state)
+{
+  ekf_data_.state.set(state.data);
+}
+
 
 Covariance EKFWrapper::get_state_covariance()
 {

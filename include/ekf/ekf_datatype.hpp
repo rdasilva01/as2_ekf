@@ -408,6 +408,51 @@ struct VelocityMeasurementCovariance
   std::string to_string() const;
 };
 
+
+/**
+ * @brief Odometry
+ */
+struct Odometry
+{
+  static const std::size_t size = 12; // 3 position + 3 orientation + 3 linear velocity + 3 angular velocity
+  static const int X = 0;
+  static const int Y = 1;
+  static const int Z = 2;
+  static const int ROLL = 3;
+  static const int PITCH = 4;
+  static const int YAW = 5;
+  static const int VX = 6;
+  static const int VY = 7;
+  static const int VZ = 8;
+  static const int WX = 9;
+  static const int WY = 10;
+  static const int WZ = 11;
+  std::array<double, size> data;
+
+  /**
+   * @brief Constructor
+   */
+  Odometry();
+
+  /**
+   * @brief Constructor with initial values
+   * @param values Initial values for the odometry
+   */
+  Odometry(const std::array<double, size> & values);
+
+  /**
+   * @brief Sets the odometry to the provided values
+   * @param values Values to set the odometry
+   */
+  void set(const std::array<double, size> & values);
+
+  /**
+   * @brief The print operator for easy debugging
+   * @return A string representation of the odometry
+   */
+  std::string to_string() const;
+};
+
 } // namespace ekf
 
 #endif // EKF__EKF_DATATYPE_H

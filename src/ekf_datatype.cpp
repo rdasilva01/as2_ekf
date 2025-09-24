@@ -391,4 +391,38 @@ std::string VelocityMeasurementCovariance::to_string() const
 }
 
 
+Odometry::Odometry()
+{
+  data.fill(0.0);
+}
+
+Odometry::Odometry(const std::array<double, size> & values)
+{
+  set(values);
+}
+
+void Odometry::set(const std::array<double, size> & values)
+{
+  data = values;
+}
+
+std::string Odometry::to_string() const
+{
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < data.size(); ++i) {
+    oss << data[i];
+
+    if (i + 1 != data.size()) {
+      oss << ", ";
+      if ((i + 1) % 6 == 0) {
+        oss << "\n ";
+      }
+    }
+  }
+  oss << "]";
+  return oss.str();
+}
+
+
 } // namespace ekf

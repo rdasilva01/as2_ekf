@@ -151,6 +151,13 @@ public:
    */
   State get_state();
 
+  /**
+   * @brief Set the current state.
+   *
+   * @param state (State) The new state vector.
+   */
+  void set_state(const State & state);
+
 
   /**
    * @brief Get the current state covariance.
@@ -275,6 +282,13 @@ public:
   void predict(
     const Input & imu_measurement,
     const double & dt);
+
+
+  /**
+   * @brief Predict the next state with odometry.
+   *
+   * @param
+   */
 
 
   /**
