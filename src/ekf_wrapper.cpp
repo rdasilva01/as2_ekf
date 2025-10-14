@@ -450,6 +450,25 @@ void EKFWrapper::update_pose(
 }
 
 
+void EKFWrapper::update_pose_odom(
+  const PoseMeasurement & z,
+  const PoseMeasurementCovariance & measurement_noise_covariance)
+{
+  update_pose_arg_[2] = z.data.data();
+  update_pose_arg_[4] = measurement_noise_covariance.data.data();
+
+  State prev_state = get_state();
+
+  update_pose_function(
+    update_pose_arg_,
+    update_pose_res_,
+    nullptr,
+    nullptr,
+    0);
+  correct_state();
+}
+
+
 void EKFWrapper::update_velocity(
   const VelocityMeasurement & z,
   const VelocityMeasurementCovariance & measurement_noise_covariance)

@@ -285,19 +285,23 @@ public:
 
 
   /**
-   * @brief Predict the next state with odometry.
-   *
-   * @param
-   */
-
-
-  /**
    * @brief Update the state with a new pose measurement.
    *
    * @param z (PoseMeasurement) The measurement (pose) vector.
    * @param measurement_noise_covariance (PoseMeasurementCovariance) The measurement noise covariance matrix.
    */
   void update_pose(
+    const PoseMeasurement & z,
+    const PoseMeasurementCovariance & measurement_noise_covariance);
+
+
+  /**
+   * @brief Update the state with a new pose measurement from odometry.
+   *
+   * @param z (PoseMeasurement) The measurement (pose) vector.
+   * @param measurement_noise_covariance (PoseMeasurementCovariance) The measurement noise covariance matrix.
+   */
+  void update_pose_odom(
     const PoseMeasurement & z,
     const PoseMeasurementCovariance & measurement_noise_covariance);
 
