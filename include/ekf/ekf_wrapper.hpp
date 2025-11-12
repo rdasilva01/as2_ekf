@@ -62,6 +62,7 @@ struct EKFData
   Covariance covariance; // Current covariance of the EKF
   Gravity gravity; // Gravity vector
   Eigen::Matrix4d map_to_odom; // Transformation matrix from map to odometry frame
+  Eigen::Vector3d map_to_odom_velocity; // Velocity of the map to odom frame
 };
 
 /**
@@ -143,6 +144,11 @@ public:
    */
   void set_map_to_odom(const Eigen::Matrix4d & map_to_odom);
 
+  /**
+   * @brief Set map to odom velocity.
+   * @param map_to_odom_velocity (Eigen::Vector3d) The velocity of the map to odom frame.
+   */
+  void set_map_to_odom_velocity(const Eigen::Vector3d & map_to_odom_velocity);
 
   /**
    * @brief Get the current state.
@@ -173,6 +179,13 @@ public:
    * @return The current map to odom transformation matrix.
    */
   Eigen::Matrix4d get_map_to_odom();
+
+
+  /**
+   * #brief Get the current map to odom velocity.
+   * @return The current map to odom velocity vector.
+   */
+  Eigen::Vector3d get_map_to_odom_velocity();
 
 
   /**
@@ -230,6 +243,18 @@ public:
     const State & state,
     const State & new_state,
     const Eigen::Matrix4d & prev_map_to_odom);
+  
+  /**
+   * @brief Compute map to odom velocity.
+   * @param state (State) The current state vector.
+   * @param new_state (State) The new state vector.
+   * @param prev_map_to_odom_velocity (Eigen::Vector3d) The previous map to odom velocity vector.
+   * @return The new map to odom velocity vector.
+   */
+  static Eigen::Vector3d compute_map_to_odom_velocity(
+    const State & state,
+    const State & new_state,
+    const Eigen::Vector3d & prev_map_to_odom_velocity);
 
 
   /**

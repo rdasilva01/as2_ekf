@@ -48,6 +48,7 @@ EKFWrapper::EKFWrapper()
   // Initialize the EKF data
   ekf_data_ = EKFData();
   ekf_data_.map_to_odom = Eigen::Matrix4d::Identity();
+  ekf_data_.map_to_odom_velocity = Eigen::Vector3d::Zero();
   imu_noise_ = Eigen::Vector<double, 6>::Zero();
   accelerometer_noise_density_ = 0.0;
   gyroscope_noise_density_ = 0.0;
@@ -72,6 +73,7 @@ EKFWrapper::EKFWrapper(
   ekf_data_.state = initial_state;
   ekf_data_.covariance = initial_covariance;
   ekf_data_.map_to_odom = Eigen::Matrix4d::Identity();
+  ekf_data_.map_to_odom_velocity = Eigen::Vector3d::Zero();
   imu_noise_ = imu_noise;
   accelerometer_noise_density_ = accelerometer_noise_density;
   gyroscope_noise_density_ = gyroscope_noise_density;
@@ -119,7 +121,6 @@ void EKFWrapper::reset(
 {
   ekf_data_.state = initial_state;
   ekf_data_.covariance = initial_covariance;
-  ekf_data_.map_to_odom = Eigen::Matrix4d::Identity();
 }
 
 
@@ -155,6 +156,12 @@ void EKFWrapper::set_map_to_odom(const Eigen::Matrix4d & map_to_odom)
 }
 
 
+void EKFWrapper::set_map_to_odom_velocity(const Eigen::Vector3d & map_to_odom_velocity)
+{
+  ekf_data_.map_to_odom_velocity = map_to_odom_velocity;
+}
+
+
 State EKFWrapper::get_state()
 {
   return ekf_data_.state;
@@ -175,6 +182,12 @@ Covariance EKFWrapper::get_state_covariance()
 Eigen::Matrix4d EKFWrapper::get_map_to_odom()
 {
   return ekf_data_.map_to_odom;
+}
+
+
+Eigen::Vector3d EKFWrapper::get_map_to_odom_velocity()
+{
+  return ekf_data_.map_to_odom_velocity;
 }
 
 
@@ -304,6 +317,20 @@ Eigen::Matrix4d EKFWrapper::compute_map_to_odom(
 
   Eigen::Matrix4d T_map_odom_new = delta * prev_map_to_odom;
   return T_map_odom_new;
+}
+
+
+Eigen::Vector3d EKFWrapper::compute_map_to_odom_velocity(
+  const State & state,
+  const State & new_state,
+  const Eigen::Vector3d & prev_map_to_odom_velocity)
+{
+  Eigen::Vector3d v_prev = Eigen::Vector3d(state.get_velocity().data());
+  Eigen::Vector3d v_new = Eigen::Vector3d(new_state.get_velocity().data());
+
+  Eigen::Vector3d delta_v = v_new - v_prev;
+  Eigen::Vector3d map_to_odom_velocity_new = prev_map_to_odom_velocity + delta_v;
+  return map_to_odom_velocity_new;
 }
 
 
@@ -447,6 +474,12 @@ void EKFWrapper::update_pose(
       prev_state,
       get_state(),
       get_map_to_odom()));
+  // Update the map to odom Velocity
+  set_map_to_odom_velocity(
+    compute_map_to_odom_velocity(
+      prev_state,
+      get_state(),
+      get_map_to_odom_velocity()));
 }
 
 
