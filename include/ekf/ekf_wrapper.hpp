@@ -308,6 +308,18 @@ public:
     const Input & imu_measurement,
     const double & dt);
 
+  /**
+   * @brief Predict the next state with odom.
+   *
+   * @param imu_measurement (Input) The IMU measurement vector.
+   * @param dt (double) The time step.
+   * @param process_noise_covariance (Covariance) The process noise covariance matrix.
+   */
+  void predict_odom(
+    const Input & imu_measurement,
+    const double & dt,
+    const Covariance & process_noise_covariance);
+
 
   /**
    * @brief Update the state with a new pose measurement.

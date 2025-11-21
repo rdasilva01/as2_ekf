@@ -450,6 +450,25 @@ void EKFWrapper::predict(
   correct_state();
 }
 
+void EKFWrapper::predict_odom(
+  const Input & input,
+  const double & dt,
+  const Covariance & process_noise_covariance)
+{
+
+  arg_[1] = input.data.data();
+  arg_[3] = &dt;
+  arg_[5] = process_noise_covariance.data.data();
+
+  predict_function(
+    arg_,
+    res_,
+    nullptr,
+    nullptr,
+    0);
+  correct_state();
+}
+
 
 void EKFWrapper::update_pose(
   const PoseMeasurement & z,
